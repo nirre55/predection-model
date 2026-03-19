@@ -1,0 +1,369 @@
+[
+  {
+    "combo": "rsi+macd+atr",
+    "indicators": [
+      "rsi",
+      "macd",
+      "atr"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5083,
+    "profit_factor": 1.0126,
+    "score": 0.5075
+  },
+  {
+    "combo": "rsi+bb",
+    "indicators": [
+      "rsi",
+      "bb"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5092,
+    "profit_factor": 1.008,
+    "score": 0.50712
+  },
+  {
+    "combo": "macd+bb",
+    "indicators": [
+      "macd",
+      "bb"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5096,
+    "profit_factor": 1.0051,
+    "score": 0.50678
+  },
+  {
+    "combo": "macd+bb+vol",
+    "indicators": [
+      "macd",
+      "bb",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5091,
+    "profit_factor": 1.0063,
+    "score": 0.50672
+  },
+  {
+    "combo": "macd+bb+atr",
+    "indicators": [
+      "macd",
+      "bb",
+      "atr"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5101,
+    "profit_factor": 1.0001,
+    "score": 0.50608
+  },
+  {
+    "combo": "macd+bb+atr+vol",
+    "indicators": [
+      "macd",
+      "bb",
+      "atr",
+      "vol"
+    ],
+    "n_features": 450,
+    "accuracy": 0.5082,
+    "profit_factor": 1.0051,
+    "score": 0.50594
+  },
+  {
+    "combo": "bb+atr+vol",
+    "indicators": [
+      "bb",
+      "atr",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5083,
+    "profit_factor": 1.0041,
+    "score": 0.5058
+  },
+  {
+    "combo": "rsi+macd+bb+atr",
+    "indicators": [
+      "rsi",
+      "macd",
+      "bb",
+      "atr"
+    ],
+    "n_features": 450,
+    "accuracy": 0.5095,
+    "profit_factor": 1.0005,
+    "score": 0.5058
+  },
+  {
+    "combo": "rsi+bb+vol",
+    "indicators": [
+      "rsi",
+      "bb",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5091,
+    "profit_factor": 1.0009,
+    "score": 0.50564
+  },
+  {
+    "combo": "rsi+macd+bb+vol",
+    "indicators": [
+      "rsi",
+      "macd",
+      "bb",
+      "vol"
+    ],
+    "n_features": 450,
+    "accuracy": 0.5088,
+    "profit_factor": 1.0018,
+    "score": 0.50564
+  },
+  {
+    "combo": "rsi+macd",
+    "indicators": [
+      "rsi",
+      "macd"
+    ],
+    "n_features": 350,
+    "accuracy": 0.508,
+    "profit_factor": 1.0037,
+    "score": 0.50554
+  },
+  {
+    "combo": "rsi+atr",
+    "indicators": [
+      "rsi",
+      "atr"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5073,
+    "profit_factor": 1.0057,
+    "score": 0.50552
+  },
+  {
+    "combo": "bb+vol",
+    "indicators": [
+      "bb",
+      "vol"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5078,
+    "profit_factor": 1.0038,
+    "score": 0.50544
+  },
+  {
+    "combo": "rsi+macd+bb+atr+vol",
+    "indicators": [
+      "rsi",
+      "macd",
+      "bb",
+      "atr",
+      "vol"
+    ],
+    "n_features": 500,
+    "accuracy": 0.5075,
+    "profit_factor": 1.0042,
+    "score": 0.50534
+  },
+  {
+    "combo": "bb+atr",
+    "indicators": [
+      "bb",
+      "atr"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5085,
+    "profit_factor": 1.0007,
+    "score": 0.50524
+  },
+  {
+    "combo": "atr",
+    "indicators": [
+      "atr"
+    ],
+    "n_features": 300,
+    "accuracy": 0.5053,
+    "profit_factor": 1.0097,
+    "score": 0.50512
+  },
+  {
+    "combo": "bb",
+    "indicators": [
+      "bb"
+    ],
+    "n_features": 300,
+    "accuracy": 0.5086,
+    "profit_factor": 0.9997,
+    "score": 0.5051
+  },
+  {
+    "combo": "rsi+vol",
+    "indicators": [
+      "rsi",
+      "vol"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5088,
+    "profit_factor": 0.9984,
+    "score": 0.50496
+  },
+  {
+    "combo": "macd+atr+vol",
+    "indicators": [
+      "macd",
+      "atr",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5059,
+    "profit_factor": 1.0071,
+    "score": 0.50496
+  },
+  {
+    "combo": "macd+atr",
+    "indicators": [
+      "macd",
+      "atr"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5067,
+    "profit_factor": 1.0046,
+    "score": 0.50494
+  },
+  {
+    "combo": "rsi+bb+atr",
+    "indicators": [
+      "rsi",
+      "bb",
+      "atr"
+    ],
+    "n_features": 400,
+    "accuracy": 0.508,
+    "profit_factor": 1.0005,
+    "score": 0.5049
+  },
+  {
+    "combo": "rsi+macd+atr+vol",
+    "indicators": [
+      "rsi",
+      "macd",
+      "atr",
+      "vol"
+    ],
+    "n_features": 450,
+    "accuracy": 0.5082,
+    "profit_factor": 0.9993,
+    "score": 0.50478
+  },
+  {
+    "combo": "rsi+macd+bb",
+    "indicators": [
+      "rsi",
+      "macd",
+      "bb"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5088,
+    "profit_factor": 0.9963,
+    "score": 0.50454
+  },
+  {
+    "combo": "rsi+bb+atr+vol",
+    "indicators": [
+      "rsi",
+      "bb",
+      "atr",
+      "vol"
+    ],
+    "n_features": 450,
+    "accuracy": 0.5087,
+    "profit_factor": 0.9964,
+    "score": 0.5045
+  },
+  {
+    "combo": "rsi+macd+vol",
+    "indicators": [
+      "rsi",
+      "macd",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5082,
+    "profit_factor": 0.9972,
+    "score": 0.50436
+  },
+  {
+    "combo": "rsi+atr+vol",
+    "indicators": [
+      "rsi",
+      "atr",
+      "vol"
+    ],
+    "n_features": 400,
+    "accuracy": 0.5075,
+    "profit_factor": 0.9991,
+    "score": 0.50432
+  },
+  {
+    "combo": "OHLCV_seul",
+    "indicators": [],
+    "n_features": 250,
+    "accuracy": 0.5049,
+    "profit_factor": 1.0044,
+    "score": 0.50382
+  },
+  {
+    "combo": "macd",
+    "indicators": [
+      "macd"
+    ],
+    "n_features": 300,
+    "accuracy": 0.5051,
+    "profit_factor": 1.0029,
+    "score": 0.50364
+  },
+  {
+    "combo": "atr+vol",
+    "indicators": [
+      "atr",
+      "vol"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5044,
+    "profit_factor": 1.0031,
+    "score": 0.50326
+  },
+  {
+    "combo": "rsi",
+    "indicators": [
+      "rsi"
+    ],
+    "n_features": 300,
+    "accuracy": 0.5069,
+    "profit_factor": 0.9943,
+    "score": 0.503
+  },
+  {
+    "combo": "macd+vol",
+    "indicators": [
+      "macd",
+      "vol"
+    ],
+    "n_features": 350,
+    "accuracy": 0.5055,
+    "profit_factor": 0.9971,
+    "score": 0.50272
+  },
+  {
+    "combo": "vol",
+    "indicators": [
+      "vol"
+    ],
+    "n_features": 300,
+    "accuracy": 0.5036,
+    "profit_factor": 1.0009,
+    "score": 0.50234
+  }
+]
