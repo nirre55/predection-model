@@ -19,12 +19,12 @@ def _normalize_window(window_array: np.ndarray, ref_close: float) -> np.ndarray:
 def build_dataset(
     df: pd.DataFrame, window: int = 50
 ) -> tuple[np.ndarray, np.ndarray]:
-    ohlcv = df[["open", "high", "low", "close", "volume"]].values
-    close = df["close"].values
-    open_ = df["open"].values
-    high = df["high"].values
-    low = df["low"].values
-    volume = df["volume"].values
+    ohlcv = np.asarray(df[["open", "high", "low", "close", "volume"]].values, dtype="float64")
+    close = np.asarray(df["close"].values, dtype="float64")
+    open_ = np.asarray(df["open"].values, dtype="float64")
+    high = np.asarray(df["high"].values, dtype="float64")
+    low = np.asarray(df["low"].values, dtype="float64")
+    volume = np.asarray(df["volume"].values, dtype="float64")
 
     # Indicateurs calculés sur la série complète (causaux, pas de look-ahead)
     rsi = compute_rsi(close)

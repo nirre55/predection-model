@@ -8,8 +8,8 @@ def compute_rsi(close: np.ndarray, period: int = 14) -> np.ndarray:
     delta = s.diff()
     gain = delta.where(delta > 0, 0.0)
     loss = -delta.where(delta < 0, 0.0)
-    avg_gain = gain.ewm(alpha=1.0 / period, adjust=False).mean().values
-    avg_loss = loss.ewm(alpha=1.0 / period, adjust=False).mean().values
+    avg_gain = np.asarray(gain.ewm(alpha=1.0 / period, adjust=False).mean().values, dtype="float64")
+    avg_loss = np.asarray(loss.ewm(alpha=1.0 / period, adjust=False).mean().values, dtype="float64")
     with np.errstate(divide="ignore", invalid="ignore"):
         rs = np.where(avg_loss > 0, avg_gain / avg_loss, 100.0)
     rsi = 100.0 - 100.0 / (1.0 + rs)
@@ -23,7 +23,7 @@ def compute_macd_histogram(
     """Histogramme MACD normalisé par le close (scale-invariant)."""
     s = pd.Series(close)
     macd_line = s.ewm(span=fast, adjust=False).mean() - s.ewm(span=slow, adjust=False).mean()
-    histogram = (macd_line - macd_line.ewm(span=signal_period, adjust=False).mean()).values
+    histogram = np.asarray((macd_line - macd_line.ewm(span=signal_period, adjust=False).mean()).values, dtype="float64")
     with np.errstate(divide="ignore", invalid="ignore"):
         return np.where(close > 0, histogram / close, 0.0)
 
@@ -35,11 +35,12 @@ def compute_bollinger_pct(
     s = pd.Series(close)
     ma = s.rolling(period, min_periods=1).mean()
     std = s.rolling(period, min_periods=1).std(ddof=0).fillna(0.0)
-    band_width = (2 * num_std * std).values
+    band_width = np.asarray((2 * num_std * std).values, dtype="float64")
+    lower = np.asarray((ma - num_std * std).values, dtype="float64")
     with np.errstate(divide="ignore", invalid="ignore"):
         pct_b = np.where(
             band_width > 0,
-            (close - (ma - num_std * std).values) / band_width,
+            (close - lower) / band_width,
             0.5,
         )
     return np.clip(pct_b, -1.0, 2.0)
@@ -55,14 +56,14 @@ def compute_atr_normalized(
         high - low,
         np.maximum(np.abs(high - prev_close), np.abs(low - prev_close)),
     )
-    atr = pd.Series(tr).ewm(alpha=1.0 / period, adjust=False).mean().values
+    atr = np.asarray(pd.Series(tr).ewm(alpha=1.0 / period, adjust=False).mean().values, dtype="float64")
     with np.errstate(divide="ignore", invalid="ignore"):
         return np.where(close > 0, atr / close, 0.0)
 
 
 def compute_volume_ratio(volume: np.ndarray, period: int = 20) -> np.ndarray:
     """Volume courant / SMA(volume, period), clampé à [0, 10]."""
-    ma = pd.Series(volume).rolling(period, min_periods=1).mean().values
+    ma = np.asarray(pd.Series(volume).rolling(period, min_periods=1).mean().values, dtype="float64")
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio = np.where(ma > 0, volume / ma, 1.0)
     return np.clip(ratio, 0.0, 10.0)
