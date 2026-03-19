@@ -18,3 +18,5 @@ build/
 htmlcov/
 .coverage
 .claude/
+_bmad/
+_bmad-output/
