@@ -20,3 +20,5 @@ htmlcov/
 .claude/
 _bmad/
 _bmad-output/
+models/*.pkl
+data/raw/*.parquet
