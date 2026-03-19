@@ -6,13 +6,13 @@
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.12+
 - [uv](https://github.com/astral-sh/uv)
 
 ### Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/nirre55/predection-model.git
 cd predection-model
 uv sync
 ```
