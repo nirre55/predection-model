@@ -1,0 +1,166 @@
+[
+  {
+    "slot": "sunday_9_20",
+    "dow": [
+      6
+    ],
+    "hour_start": 9,
+    "hour_end": 20,
+    "model_type": "xgb",
+    "model_path": "models\\schedule\\sunday_9_20.pkl",
+    "accuracy_wf": 0.508499,
+    "profit_factor_wf": 1.034878,
+    "score": 0.512075,
+    "window": 20,
+    "n_samples": 34452
+  },
+  {
+    "slot": "sunday_0_9",
+    "dow": [
+      6
+    ],
+    "hour_start": 0,
+    "hour_end": 9,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\sunday_0_9.pkl",
+    "accuracy_wf": 0.511476,
+    "profit_factor_wf": 1.04728,
+    "score": 0.516342,
+    "window": 50,
+    "n_samples": 28132
+  },
+  {
+    "slot": "sunday_20_24",
+    "dow": [
+      6
+    ],
+    "hour_start": 20,
+    "hour_end": 24,
+    "model_type": "xgb",
+    "model_path": "models\\schedule\\sunday_20_24.pkl",
+    "accuracy_wf": 0.506897,
+    "profit_factor_wf": 1.028696,
+    "score": 0.509877,
+    "window": 20,
+    "n_samples": 12528
+  },
+  {
+    "slot": "friday_all",
+    "dow": [
+      4
+    ],
+    "hour_start": 0,
+    "hour_end": 24,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\friday_all.pkl",
+    "accuracy_wf": 0.505962,
+    "profit_factor_wf": 1.024293,
+    "score": 0.508435,
+    "window": 20,
+    "n_samples": 74880
+  },
+  {
+    "slot": "saturday_7_14",
+    "dow": [
+      5
+    ],
+    "hour_start": 7,
+    "hour_end": 14,
+    "model_type": "xgb",
+    "model_path": "models\\schedule\\saturday_7_14.pkl",
+    "accuracy_wf": 0.521949,
+    "profit_factor_wf": 1.093343,
+    "score": 0.531838,
+    "window": 100,
+    "n_samples": 21924
+  },
+  {
+    "slot": "saturday_0_7",
+    "dow": [
+      5
+    ],
+    "hour_start": 0,
+    "hour_end": 7,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\saturday_0_7.pkl",
+    "accuracy_wf": 0.513746,
+    "profit_factor_wf": 1.056918,
+    "score": 0.519631,
+    "window": 100,
+    "n_samples": 21914
+  },
+  {
+    "slot": "saturday_14_24",
+    "dow": [
+      5
+    ],
+    "hour_start": 14,
+    "hour_end": 24,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\saturday_14_24.pkl",
+    "accuracy_wf": 0.502146,
+    "profit_factor_wf": 1.008865,
+    "score": 0.50306,
+    "window": 20,
+    "n_samples": 31320
+  },
+  {
+    "slot": "weekdays_day",
+    "dow": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "hour_start": 7,
+    "hour_end": 20,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\weekdays_day.pkl",
+    "accuracy_wf": 0.502632,
+    "profit_factor_wf": 1.010659,
+    "score": 0.503711,
+    "window": 20,
+    "n_samples": 162797
+  },
+  {
+    "slot": "weekdays_night",
+    "dow": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "hour_start": 0,
+    "hour_end": 7,
+    "model_type": "lgbm",
+    "model_path": "models\\schedule\\weekdays_night.pkl",
+    "accuracy_wf": 0.5041,
+    "profit_factor_wf": 1.016582,
+    "score": 0.505776,
+    "window": 20,
+    "n_samples": 87666
+  },
+  {
+    "slot": "weekdays_eve",
+    "dow": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "hour_start": 20,
+    "hour_end": 24,
+    "model_type": "xgb",
+    "model_path": "models\\schedule\\weekdays_eve.pkl",
+    "accuracy_wf": 0.506208,
+    "profit_factor_wf": 1.025797,
+    "score": 0.508884,
+    "window": 20,
+    "n_samples": 50064
+  },
+  {
+    "slot": "default",
+    "default": true,
+    "model_path": "models/model_calibrated.pkl"
+  }
+]
