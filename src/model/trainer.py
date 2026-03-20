@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 
 # LightGBM stocke des feature names même pour les arrays numpy (comportement sklearn ≥1.6)
 warnings.filterwarnings(
@@ -11,23 +11,26 @@ warnings.filterwarnings(
 
 
 class _PrefitCalibratedClassifier:
-    """Calibration isotonique sur un estimateur déjà entraîné (équivalent de cv='prefit')."""
+    """
+    Calibration sigmoid (Platt scaling) sur un estimateur déjà entraîné.
+    Utilise une régression logistique 1D sur les probabilités brutes — sortie
+    continue, pas de collapse en valeurs discrètes comme l'IsotonicRegression.
+    """
 
     def __init__(self, base_estimator):
         self.base_estimator = base_estimator
         self.classes_ = [0, 1]
-        self._ir: IsotonicRegression = IsotonicRegression(out_of_bounds="clip")
+        self._lr: LogisticRegression = LogisticRegression(C=1.0, solver="lbfgs", max_iter=1000)
 
     def fit(self, X_cal: np.ndarray, y_cal: np.ndarray) -> "_PrefitCalibratedClassifier":
-        raw_proba = self.base_estimator.predict_proba(X_cal)[:, 1]
-        self._ir.fit(raw_proba, y_cal)
+        raw_proba = self.base_estimator.predict_proba(X_cal)[:, 1].reshape(-1, 1)
+        self._lr.fit(raw_proba, y_cal)
         return self
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        raw_proba = self.base_estimator.predict_proba(X)[:, 1]
-        cal_proba_1 = self._ir.predict(raw_proba)
-        cal_proba_0 = 1.0 - cal_proba_1
-        return np.column_stack([cal_proba_0, cal_proba_1])
+        raw_proba = self.base_estimator.predict_proba(X)[:, 1].reshape(-1, 1)
+        cal_proba = self._lr.predict_proba(raw_proba)  # shape (n, 2)
+        return cal_proba
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return (self.predict_proba(X)[:, 1] >= 0.5).astype(int)

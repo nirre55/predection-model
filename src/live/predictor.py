@@ -151,10 +151,12 @@ class LivePredictor:
             open_str = pred.candle_open.strftime("%H:%M")
             close_str = pred.candle_close.strftime("%H:%M")
             slot_str = f" [{pred.model_slot}]" if pred.model_slot != "default" else ""
+            confidence = abs(pred.probability - 0.5) * 200  # 0% = neutre, 100% = certain
+            conf_str = f"conf={confidence:.1f}%"
             print(
                 f"[{open_str}->{close_str}]{slot_str} "
-                f"{pred.direction} {pred.probability:.0%} | "
-                f"{other_direction} {other_prob:.0%}"
+                f"{pred.direction} {pred.probability:.2%} | "
+                f"{other_direction} {other_prob:.2%} | {conf_str}"
             )
 
 
