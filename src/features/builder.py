@@ -30,11 +30,77 @@ INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
 ALL_INDICATORS = ["rsi", "macd", "bb", "atr", "vol"]
 
 
+def build_multitf_context(
+    df_1h: pd.DataFrame,
+    df_4h: pd.DataFrame,
+    target_times: np.ndarray,
+) -> np.ndarray:
+    """
+    Construit 5 features contextuelles multi-timeframe alignées sur target_times.
+
+    Args:
+        df_1h:        DataFrame 1h avec colonnes open_time, open, high, low, close, volume.
+        df_4h:        DataFrame 4h avec colonnes open_time, open, high, low, close, volume.
+        target_times: Array de timestamps (datetime64 ou int64 nanoseconds UTC).
+
+    Returns:
+        ctx: (n_samples, 5) — [trend_1h, trend_4h, momentum_1h, volatility_regime_1h, rsi_1h]
+    """
+    # Convertir les timestamps en int64 ns
+    times_1h_ns = np.asarray(df_1h["open_time"].values, dtype="int64")
+    times_4h_ns = np.asarray(df_4h["open_time"].values, dtype="int64")
+
+    # Convertir target_times en int64 ns
+    target_times_ns = np.asarray(target_times).astype("int64")
+
+    # Pré-calculer les features 1h
+    close_1h = np.asarray(df_1h["close"].values, dtype="float64")
+    high_1h = np.asarray(df_1h["high"].values, dtype="float64")
+    low_1h = np.asarray(df_1h["low"].values, dtype="float64")
+
+    sma20_1h = pd.Series(close_1h).rolling(20, min_periods=1).mean().values
+    trend_1h_arr = (close_1h > sma20_1h).astype("float64")
+    rsi_1h_arr = compute_rsi(close_1h)
+    atr_1h_arr = compute_atr_normalized(high_1h, low_1h, close_1h)
+
+    # Pré-calculer les features 4h
+    close_4h = np.asarray(df_4h["close"].values, dtype="float64")
+    sma20_4h = pd.Series(close_4h).rolling(20, min_periods=1).mean().values
+    trend_4h_arr = (close_4h > sma20_4h).astype("float64")
+
+    # Alignement sans look-ahead via searchsorted
+    idx_1h = np.searchsorted(times_1h_ns, target_times_ns, side="right") - 1
+    idx_4h = np.searchsorted(times_4h_ns, target_times_ns, side="right") - 1
+
+    # Clamp des indices
+    idx_1h = np.clip(idx_1h, 0, len(df_1h) - 1)
+    idx_4h = np.clip(idx_4h, 0, len(df_4h) - 1)
+
+    # Extraire les 5 features vectorisées
+    f_trend_1h = trend_1h_arr[idx_1h]
+    f_trend_4h = trend_4h_arr[idx_4h]
+
+    # Momentum : (close[idx] - close[max(0, idx-3)]) / close[max(0, idx-3)]
+    idx_1h_lag = np.maximum(0, idx_1h - 3)
+    f_momentum_1h = np.clip(
+        (close_1h[idx_1h] - close_1h[idx_1h_lag]) / close_1h[idx_1h_lag],
+        -0.1, 0.1,
+    )
+
+    f_volatility_1h = atr_1h_arr[idx_1h]
+    f_rsi_1h = rsi_1h_arr[idx_1h]
+
+    return np.column_stack([f_trend_1h, f_trend_4h, f_momentum_1h, f_volatility_1h, f_rsi_1h])
+
+
 def build_dataset(
     df: pd.DataFrame,
     window: int = 50,
     indicators: list[str] | None = None,
     include_time: bool = False,
+    df_1h: pd.DataFrame | None = None,
+    df_4h: pd.DataFrame | None = None,
+    min_move_pct: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Construit X, y pour l'entraînement.
@@ -44,6 +110,9 @@ def build_dataset(
         window:       Taille de la fenêtre (nombre de bougies).
         indicators:   Liste d'indicateurs à inclure (None = tous les 5).
         include_time: Si True, ajoute 5 features temporelles (heure/jour).
+        df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
+        df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
+        min_move_pct: Seuil minimum de mouvement de prix — bougies en-dessous masquées (0.0 = désactivé).
 
     Returns:
         X: (n_samples, n_features)
@@ -83,6 +152,18 @@ def build_dataset(
     target_idx = j_arr + window + 2
     y = (close[target_idx] > open_[target_idx]).astype("int64")
 
+    # Multi-timeframe context
+    if df_1h is not None and df_4h is not None:
+        target_times_mtf = np.asarray(df["open_time"].iloc[target_idx].reset_index(drop=True).values)
+        ctx = build_multitf_context(df_1h, df_4h, target_times_mtf)
+        X = np.concatenate([X, ctx], axis=1)
+
+    # Target filtering
+    if min_move_pct > 0.0:
+        price_move_pct = np.abs(close[target_idx] - open_[target_idx]) / open_[target_idx]
+        valid_mask = price_move_pct >= min_move_pct
+        X, y = X[valid_mask], y[valid_mask]
+
     return X, y
 
 
@@ -91,10 +172,22 @@ def build_dataset_with_target_times(
     window: int = 50,
     indicators: list[str] | None = None,
     include_time: bool = False,
+    df_1h: pd.DataFrame | None = None,
+    df_4h: pd.DataFrame | None = None,
+    min_move_pct: float = 0.0,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Comme build_dataset mais retourne aussi les timestamps des bougies cibles.
     Utilisé par ablation_schedule.py pour filtrer par slot horaire.
+
+    Args:
+        df:           DataFrame OHLCV avec colonne open_time.
+        window:       Taille de la fenêtre (nombre de bougies).
+        indicators:   Liste d'indicateurs à inclure (None = tous les 5).
+        include_time: Si True, ajoute 5 features temporelles (heure/jour).
+        df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
+        df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
+        min_move_pct: Seuil minimum de mouvement de prix (0.0 = désactivé).
 
     Returns:
         X, y, target_open_times (np.ndarray de datetime64)
@@ -130,6 +223,17 @@ def build_dataset_with_target_times(
     y = (close[target_idx] > open_[target_idx]).astype("int64")
     target_open_times = np.asarray(target_times_series.values)
 
+    # Multi-timeframe context
+    if df_1h is not None and df_4h is not None:
+        ctx = build_multitf_context(df_1h, df_4h, np.asarray(target_times_series.values))
+        X = np.concatenate([X, ctx], axis=1)
+
+    # Target filtering — appliqué sur X, y ET target_open_times
+    if min_move_pct > 0.0:
+        price_move_pct = np.abs(close[target_idx] - open_[target_idx]) / open_[target_idx]
+        valid_mask = price_move_pct >= min_move_pct
+        X, y, target_open_times = X[valid_mask], y[valid_mask], target_open_times[valid_mask]
+
     return X, y, target_open_times
 
 
@@ -138,6 +242,8 @@ def build_inference_features(
     window: int = 50,
     indicators: list[str] | None = None,
     predict_time: datetime | None = None,
+    df_1h: pd.DataFrame | None = None,
+    df_4h: pd.DataFrame | None = None,
 ) -> np.ndarray:
     """
     Construit les features pour une prédiction en temps réel.
@@ -147,6 +253,8 @@ def build_inference_features(
         window:       Taille de la fenêtre.
         indicators:   Liste d'indicateurs (None = tous les 5, pour compat. ascendante).
         predict_time: Datetime UTC de la bougie à prédire — pour les features temporelles.
+        df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
+        df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
     """
     active = indicators if indicators is not None else ALL_INDICATORS
 
@@ -182,4 +290,14 @@ def build_inference_features(
         parts.append(tf.from_datetime(predict_time))
 
     X = np.concatenate(parts)
+
+    # Multi-timeframe context
+    if df_1h is not None and df_4h is not None and predict_time is not None:
+        target_ts = np.array([pd.Timestamp(predict_time).value])  # int64 ns
+        ctx = build_multitf_context(df_1h, df_4h, target_ts)  # shape (1, 5)
+        X = np.concatenate([X, ctx.flatten()])
+    elif df_1h is not None or df_4h is not None:
+        # Valeurs neutres si seulement un des deux DataFrames est fourni
+        X = np.concatenate([X, np.array([0.5, 0.5, 0.0, 0.0, 0.5])])
+
     return X.reshape(1, -1)

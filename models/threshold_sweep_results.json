@@ -1,0 +1,27 @@
+[
+  {
+    "min_move_pct": 0.0,
+    "n_samples": 104751,
+    "win_rate_oos": 0.5787313254737244
+  },
+  {
+    "min_move_pct": 0.0005,
+    "n_samples": 57084,
+    "win_rate_oos": 0.6139090829464833
+  },
+  {
+    "min_move_pct": 0.001,
+    "n_samples": 30546,
+    "win_rate_oos": 0.6409165302782324
+  },
+  {
+    "min_move_pct": 0.0015,
+    "n_samples": 16967,
+    "win_rate_oos": 0.6700058927519151
+  },
+  {
+    "min_move_pct": 0.002,
+    "n_samples": 9921,
+    "win_rate_oos": 0.6790931989924434
+  }
+]

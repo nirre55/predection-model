@@ -25,7 +25,8 @@ import pandas as pd
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from src.data.cache import load_klines
+from src.data.cache import load_klines, save_klines
+from src.data.fetcher import fetch_klines
 from src.features.builder import build_dataset_with_target_times
 from src.backtest.walk_forward import run_walk_forward
 from src.model.trainer import train
@@ -43,6 +44,7 @@ MODEL_TYPES = ["lgbm", "xgb"]
 SCHEDULE_DIR = Path("models/schedule")
 SCHEDULE_PATH = Path("models/schedule.json")
 MIN_SAMPLES = 500   # minimum de samples pour qu'un slot soit entraînable
+MIN_MOVE_PCT = 0.001  # seuil de filtrage target engineering
 
 # --- Définition des slots horaires ---
 # dow: 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi, 6=Dimanche
@@ -138,10 +140,32 @@ def run_schedule_ablation(start: str | None = None):
     print(f"Chargement des données {SYMBOL} {INTERVAL}...")
     df = load_klines(SYMBOL, INTERVAL)
     if start is not None:
-        cutoff = pd.Timestamp(start).tz_localize("UTC") if pd.Timestamp(start).tzinfo is None else pd.Timestamp(start)
+        import re
+        m = re.match(r"(\d+)\s+(year|month|day)s?\s+ago", start, re.I)
+        if m:
+            n, unit = int(m.group(1)), m.group(2).lower()
+            offsets = {"year": pd.DateOffset(years=n), "month": pd.DateOffset(months=n), "day": pd.DateOffset(days=n)}
+            cutoff = pd.Timestamp.now(tz="UTC") - offsets[unit]
+        else:
+            cutoff = pd.Timestamp(start).tz_localize("UTC") if pd.Timestamp(start).tzinfo is None else pd.Timestamp(start)
         df = df[df["open_time"] >= cutoff].reset_index(drop=True)
         print(f"Filtre appliqué depuis {cutoff.date()} : {len(df)} bougies.")
     print(f"{len(df)} bougies chargées.\n")
+
+    # Charger ou fetcher le contexte multi-timeframe
+    try:
+        df_1h = load_klines(SYMBOL, "1h")
+    except FileNotFoundError:
+        print("Fetch 1h data...")
+        df_1h = fetch_klines(SYMBOL, "1h", start_str="5 years ago UTC")
+        save_klines(df_1h, SYMBOL, "1h")
+
+    try:
+        df_4h = load_klines(SYMBOL, "4h")
+    except FileNotFoundError:
+        print("Fetch 4h data...")
+        df_4h = fetch_klines(SYMBOL, "4h", start_str="5 years ago UTC")
+        save_klines(df_4h, SYMBOL, "4h")
 
     SCHEDULE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -159,6 +183,9 @@ def run_schedule_ablation(start: str | None = None):
                 window=window,
                 indicators=BEST_INDICATORS,
                 include_time=INCLUDE_TIME,
+                df_1h=df_1h,
+                df_4h=df_4h,
+                min_move_pct=MIN_MOVE_PCT,
             )
 
             result = run_slot(
@@ -185,6 +212,9 @@ def run_schedule_ablation(start: str | None = None):
             window=best_for_slot["window"],
             indicators=BEST_INDICATORS,
             include_time=INCLUDE_TIME,
+            df_1h=df_1h,
+            df_4h=df_4h,
+            min_move_pct=MIN_MOVE_PCT,
         )
         mask = mask_for_slot(target_times, dow_list, h_start, h_end)
         X_slot, y_slot = X_all[mask], y_all[mask]
@@ -208,6 +238,8 @@ def run_schedule_ablation(start: str | None = None):
             "profit_factor_wf": best_for_slot["profit_factor"],
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "n_samples": int(len(X_slot)),
+            "multitf_enabled": True,
+            "min_move_pct": MIN_MOVE_PCT,
         }
         save_model(final_model, meta, path=model_path)
         best_for_slot["model_path"] = model_path

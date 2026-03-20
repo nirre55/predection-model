@@ -1,6 +1,7 @@
 # predection-model
 
 > Modele de prediction de direction de bougies M5 BTC/USDT avec LightGBM et XGBoost.
+> Win rate actuel : **57-64% selon le slot horaire** (objectif 55%+ atteint) avec features multi-timeframe 1h/4h et target engineering.
 
 ## Getting Started
 
@@ -22,13 +23,15 @@ uv sync
 ## Workflow complet
 
 ```
-1. fetch        — telecharger les bougies Binance en cache local
-2. ablation     — trouver la meilleure combinaison d'indicateurs
-3. ablation_schedule — entrainer un modele par slot horaire
-4. recalibrate  — recalibrer les modeles sans re-entrainer
-5. compare_periods  — comparer les performances sur 4 periodes
-6. backtest_schedule — backtester le schedule sur donnees historiques
-7. live         — lancer le predicteur en temps reel
+1. fetch             — telecharger les bougies Binance (5m + 1h + 4h) en cache local
+2. ablation          — trouver la meilleure combinaison d'indicateurs
+3. threshold_sweep   — trouver le seuil optimal de target engineering
+4. ablation_schedule — entrainer un modele par slot horaire (multi-TF + target engineering)
+5. recalibrate       — recalibrer les modeles sans re-entrainer
+6. shap_analysis     — analyser l'importance des features (SHAP)
+7. compare_periods   — comparer les performances sur 4 periodes
+8. backtest_schedule — backtester le schedule sur donnees historiques
+9. live              — lancer le predicteur en temps reel
 ```
 
 ---
@@ -75,16 +78,33 @@ uv run python ablation.py --start "2025-01-01"
 
 ### `ablation_schedule.py` — Entrainement par slot horaire
 
-Pour chaque slot horaire defini (dimanche 9h-20h, vendredi, samedi 7h-14h, jours de semaine, etc.), teste LGBM vs XGBoost avec des fenetres [20, 50, 100]. Sauvegarde le meilleur modele par slot et genere `models/schedule.json` utilise par le predicteur live.
+Pour chaque slot horaire defini (dimanche 9h-20h, vendredi, samedi 7h-14h, jours de semaine, etc.), teste LGBM vs XGBoost avec des fenetres [20, 50, 100]. Integre les features multi-timeframe (1h/4h) et le target engineering (seuil `min_move_pct=0.001`). Sauvegarde le meilleur modele par slot et genere `models/schedule.json`.
 
 ```bash
+# Sur 1 an (recommande — sweet spot donnees recentes vs historique)
+uv run python ablation_schedule.py --start "1 year ago UTC"
+
+# Sur 6 mois (retraining mensuel)
+uv run python ablation_schedule.py --start "6 months ago UTC"
+
 # Toutes les donnees
 uv run python ablation_schedule.py
-
-# Sur 1 an seulement
-uv run python ablation_schedule.py --start "1 year ago UTC"
-uv run python ablation_schedule.py --start "2025-01-01"
 ```
+
+**Resultats actuels (1 an de donnees, seuil 0.1%, features multi-TF) :**
+
+| Slot | Win Rate |
+|------|---------|
+| weekdays_day (lun-jeu 7h-20h) | 62.02% |
+| friday_all | 59.98% |
+| weekdays_night | 59.43% |
+| sunday_9_20 | 59.03% |
+| weekdays_eve | 58.01% |
+| saturday_14_24 | 55.90% |
+| sunday_20_24 | 58.43% |
+| saturday_7_14 | 56.16% |
+| saturday_0_7 | 53.21% |
+| sunday_0_9 | 52.87% |
 
 **Slots horaires :**
 
@@ -104,6 +124,47 @@ uv run python ablation_schedule.py --start "2025-01-01"
 **Sorties :**
 - `models/schedule/` — un `.pkl` par slot (ex: `saturday_7_14.pkl`)
 - `models/schedule.json` — config de routing utilisee par le predicteur live
+
+---
+
+### `threshold_sweep.py` — Sweep du seuil de target engineering
+
+Mesure le win rate out-of-sample pour chaque valeur de seuil de filtrage. Les bougies avec un mouvement inferieur au seuil sont exclues de l'entrainement (trop aleatoires pour etre previsibles).
+
+```bash
+uv run python threshold_sweep.py --start "1 year ago UTC"
+```
+
+**Resultats actuels :**
+
+| Seuil | Samples | Win Rate OOS |
+|-------|---------|-------------|
+| 0.00% (baseline) | 104 751 | 57.87% |
+| 0.05% | 57 084 | 61.39% |
+| 0.10% (configure) | 30 546 | 64.09% |
+| 0.15% | 16 967 | 67.00% |
+| 0.20% | 9 921 | 67.91% |
+
+**Sorties :**
+- `models/threshold_sweep_results.json`
+
+---
+
+### `shap_analysis.py` — Analyse SHAP des features
+
+Calcule l'importance SHAP de chaque feature sur le modele actif. Permet de valider que les nouvelles features (multi-TF) contribuent vraiment et d'identifier les features redondantes.
+
+```bash
+uv run python shap_analysis.py --start "1 year ago UTC"
+```
+
+**Top features identifiees :**
+1. `momentum_1h` — contexte de momentum 1h (feature multi-TF, impact dominant)
+2. `rsi_t-1` — RSI 5m sur la derniere bougie
+3. `rsi_1h` — RSI 1h (feature multi-TF, top 10)
+
+**Sorties :**
+- `models/shap_summary.png` — beeswarm plot des 25 features les plus importantes
 
 ---
 
@@ -187,6 +248,7 @@ uv run python cli.py live
 **Comportement :**
 - Detecte automatiquement `models/schedule.json` si present (routing par slot horaire)
 - Sinon utilise `models/model_calibrated.pkl` (modele unique)
+- Si les modeles ont `multitf_enabled: true`, fetche le contexte 1h/4h au demarrage et le rafraichit toutes les 60 min
 - Affiche la direction predite (VERT/ROUGE), la probabilite et la confiance
 - Compare la prediction avec la bougie Binance suivante (WIN/LOSS)
 - Sauvegarde toutes les predictions dans `models/predictions.csv`
@@ -223,16 +285,18 @@ Arreter avec `Ctrl+C` — la derniere prediction est sauvegardee comme PENDING.
 predection-model/
 ├── cli.py                   # Entrypoint principal
 ├── ablation.py              # Recherche meilleure combinaison d'indicateurs
-├── ablation_schedule.py     # Entrainement par slot horaire
+├── ablation_schedule.py     # Entrainement par slot horaire (multi-TF + target engineering)
+├── threshold_sweep.py       # Sweep du seuil de target engineering
+├── shap_analysis.py         # Analyse SHAP des features
 ├── recalibrate.py           # Recalibration rapide sans re-entrainement
 ├── compare_periods.py       # Comparatif multi-periodes
 ├── backtest_schedule.py     # Backtest historique avec frais
 ├── src/
 │   ├── data/
-│   │   ├── cache.py         # Cache local des bougies Binance
+│   │   ├── cache.py         # Cache local des bougies Binance (5m, 1h, 4h)
 │   │   └── fetcher.py       # Telechargement Binance API
 │   ├── features/
-│   │   ├── builder.py       # Construction des features (OHLCV + indicateurs)
+│   │   ├── builder.py       # Construction des features (OHLCV + indicateurs + multi-TF)
 │   │   ├── indicators.py    # RSI, MACD, Bollinger, ATR, Volume
 │   │   └── time_features.py # Encodage cyclique heure/jour (sin/cos)
 │   ├── model/
@@ -242,12 +306,14 @@ predection-model/
 │   ├── backtest/
 │   │   └── walk_forward.py  # Validation walk-forward (TimeSeriesSplit)
 │   └── live/
-│       └── predictor.py     # Predicteur temps reel
+│       └── predictor.py     # Predicteur temps reel (avec refresh contexte 1h/4h)
 └── models/
-    ├── model_calibrated.pkl # Modele global
-    ├── schedule.json        # Config routing temporel
-    ├── schedule/            # Modeles par slot
-    └── predictions.csv      # Historique des predictions live
+    ├── model_calibrated.pkl          # Modele global
+    ├── schedule.json                 # Config routing temporel
+    ├── schedule/                     # Modeles par slot (multitf_enabled: true)
+    ├── predictions.csv               # Historique des predictions live
+    ├── shap_summary.png              # Beeswarm plot importance des features
+    └── threshold_sweep_results.json  # Resultats du sweep de seuil
 ```
 
 ---

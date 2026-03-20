@@ -6,13 +6,13 @@
     ],
     "hour_start": 9,
     "hour_end": 20,
-    "model_type": "xgb",
+    "model_type": "lgbm",
     "model_path": "models\\schedule\\sunday_9_20.pkl",
-    "accuracy_wf": 0.508499,
-    "profit_factor_wf": 1.034878,
-    "score": 0.512075,
+    "accuracy_wf": 0.590283,
+    "profit_factor_wf": 1.44218,
+    "score": 0.642606,
     "window": 20,
-    "n_samples": 34452
+    "n_samples": 1483
   },
   {
     "slot": "sunday_0_9",
@@ -23,11 +23,11 @@
     "hour_end": 9,
     "model_type": "lgbm",
     "model_path": "models\\schedule\\sunday_0_9.pkl",
-    "accuracy_wf": 0.511476,
-    "profit_factor_wf": 1.04728,
-    "score": 0.516342,
-    "window": 50,
-    "n_samples": 28132
+    "accuracy_wf": 0.528671,
+    "profit_factor_wf": 1.160547,
+    "score": 0.549312,
+    "window": 20,
+    "n_samples": 863
   },
   {
     "slot": "sunday_20_24",
@@ -38,11 +38,11 @@
     "hour_end": 24,
     "model_type": "xgb",
     "model_path": "models\\schedule\\sunday_20_24.pkl",
-    "accuracy_wf": 0.506897,
-    "profit_factor_wf": 1.028696,
-    "score": 0.509877,
+    "accuracy_wf": 0.584252,
+    "profit_factor_wf": 1.428885,
+    "score": 0.636328,
     "window": 20,
-    "n_samples": 12528
+    "n_samples": 764
   },
   {
     "slot": "friday_all",
@@ -51,13 +51,13 @@
     ],
     "hour_start": 0,
     "hour_end": 24,
-    "model_type": "lgbm",
+    "model_type": "xgb",
     "model_path": "models\\schedule\\friday_all.pkl",
-    "accuracy_wf": 0.505962,
-    "profit_factor_wf": 1.024293,
-    "score": 0.508435,
+    "accuracy_wf": 0.599762,
+    "profit_factor_wf": 1.50925,
+    "score": 0.661707,
     "window": 20,
-    "n_samples": 74880
+    "n_samples": 5047
   },
   {
     "slot": "saturday_7_14",
@@ -66,13 +66,13 @@
     ],
     "hour_start": 7,
     "hour_end": 14,
-    "model_type": "xgb",
+    "model_type": "lgbm",
     "model_path": "models\\schedule\\saturday_7_14.pkl",
-    "accuracy_wf": 0.521949,
-    "profit_factor_wf": 1.093343,
-    "score": 0.531838,
-    "window": 100,
-    "n_samples": 21924
+    "accuracy_wf": 0.561616,
+    "profit_factor_wf": 1.358957,
+    "score": 0.608761,
+    "window": 50,
+    "n_samples": 597
   },
   {
     "slot": "saturday_0_7",
@@ -81,13 +81,13 @@
     ],
     "hour_start": 0,
     "hour_end": 7,
-    "model_type": "lgbm",
+    "model_type": "xgb",
     "model_path": "models\\schedule\\saturday_0_7.pkl",
-    "accuracy_wf": 0.513746,
-    "profit_factor_wf": 1.056918,
-    "score": 0.519631,
-    "window": 100,
-    "n_samples": 21914
+    "accuracy_wf": 0.532075,
+    "profit_factor_wf": 1.154497,
+    "score": 0.550145,
+    "window": 20,
+    "n_samples": 636
   },
   {
     "slot": "saturday_14_24",
@@ -96,13 +96,13 @@
     ],
     "hour_start": 14,
     "hour_end": 24,
-    "model_type": "lgbm",
+    "model_type": "xgb",
     "model_path": "models\\schedule\\saturday_14_24.pkl",
-    "accuracy_wf": 0.502146,
-    "profit_factor_wf": 1.008865,
-    "score": 0.50306,
+    "accuracy_wf": 0.558974,
+    "profit_factor_wf": 1.303513,
+    "score": 0.596087,
     "window": 20,
-    "n_samples": 31320
+    "n_samples": 937
   },
   {
     "slot": "weekdays_day",
@@ -116,11 +116,11 @@
     "hour_end": 20,
     "model_type": "lgbm",
     "model_path": "models\\schedule\\weekdays_day.pkl",
-    "accuracy_wf": 0.502632,
-    "profit_factor_wf": 1.010659,
-    "score": 0.503711,
+    "accuracy_wf": 0.620172,
+    "profit_factor_wf": 1.636649,
+    "score": 0.699433,
     "window": 20,
-    "n_samples": 162797
+    "n_samples": 11842
   },
   {
     "slot": "weekdays_night",
@@ -132,13 +132,13 @@
     ],
     "hour_start": 0,
     "hour_end": 7,
-    "model_type": "lgbm",
+    "model_type": "xgb",
     "model_path": "models\\schedule\\weekdays_night.pkl",
-    "accuracy_wf": 0.5041,
-    "profit_factor_wf": 1.016582,
-    "score": 0.505776,
+    "accuracy_wf": 0.594279,
+    "profit_factor_wf": 1.489526,
+    "score": 0.654473,
     "window": 20,
-    "n_samples": 87666
+    "n_samples": 5247
   },
   {
     "slot": "weekdays_eve",
@@ -152,11 +152,11 @@
     "hour_end": 24,
     "model_type": "xgb",
     "model_path": "models\\schedule\\weekdays_eve.pkl",
-    "accuracy_wf": 0.506208,
-    "profit_factor_wf": 1.025797,
-    "score": 0.508884,
+    "accuracy_wf": 0.580077,
+    "profit_factor_wf": 1.383518,
+    "score": 0.62475,
     "window": 20,
-    "n_samples": 50064
+    "n_samples": 3137
   },
   {
     "slot": "default",
