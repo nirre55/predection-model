@@ -231,8 +231,8 @@ def simulate(
             "confidence_pct":   round(confidence, 2),
             "actual":           actual_dir,
             "result":           result,
-            "price_move_pct":   round(price_move_pct * 100, 4),
-            "pnl_usd":          round(pnl_usd, 4),
+            "price_move_pct":   round(float(price_move_pct) * 100, 4),
+            "pnl_usd":          round(float(pnl_usd), 4),
         })
 
     if skipped:
