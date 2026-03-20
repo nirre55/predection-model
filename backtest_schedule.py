@@ -1,22 +1,22 @@
 """
 Backtest historique du schedule.
 
-Simule les trades sur le dernier 20% des données (hors-échantillon strict).
+Simule les trades sur le dernier 20% des donnees (hors-echantillon strict).
 Pour chaque bougie du test set :
   - Identifie le slot horaire via schedule.json
-  - Charge le modèle correspondant
-  - Prédit la direction (VERT / ROUGE)
-  - Compare avec le résultat réel de Binance
+  - Charge le modele correspondant
+  - Predit la direction (VERT / ROUGE)
+  - Compare avec le resultat reel de Binance
   - Calcule le P&L avec frais Binance 0.1% entry + 0.1% exit = 0.2% round-trip
 
-Métriques produites :
+Metriques produites :
   - Win rate global et par slot
   - P&L total et par slot (position fixe $1000 par trade)
   - Profit factor (gains / pertes bruts)
   - Max drawdown
-  - Sharpe ratio annualisé
-  - Equity curve  → models/backtest_equity.csv
-  - Résumé        → models/backtest_report.json
+  - Sharpe ratio annualise
+  - Equity curve  -> models/backtest_equity.csv
+  - Resume        -> models/backtest_report.json
 
 Usage:
     python backtest_schedule.py
@@ -45,8 +45,8 @@ SYMBOL          = "BTCUSDT"
 INTERVAL        = "5m"
 SCHEDULE_PATH   = Path("models/schedule.json")
 BEST_INDICATORS = ["rsi", "macd", "atr"]
-FEE_RT          = 0.002   # 0.1% entrée + 0.1% sortie = 0.2% round-trip
-TEST_RATIO      = 0.20    # dernier 20% des données = hors-échantillon
+FEE_RT          = 0.002   # 0.1% entree + 0.1% sortie = 0.2% round-trip
+TEST_RATIO      = 0.20    # dernier 20% des donnees = hors-echantillon
 CANDLES_PER_YEAR = 365 * 24 * 12   # bougies 5m par an ≈ 105 120
 
 
@@ -95,7 +95,7 @@ def get_slot(dt: pd.Timestamp, schedule: list[dict]) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Chargement des modèles (mis en cache)
+# Chargement des modeles (mis en cache)
 # ---------------------------------------------------------------------------
 
 class ModelCache:
@@ -114,7 +114,7 @@ class ModelCache:
 # ---------------------------------------------------------------------------
 
 def build_matrices(df: pd.DataFrame) -> dict[int, tuple]:
-    """Pré-calcule X, y, target_times pour chaque window utilisé dans le schedule."""
+    """Pre-calcule X, y, target_times pour chaque window utilise dans le schedule."""
     schedule = load_schedule()
     windows = set(s["window"] for s in schedule if not s.get("default"))
     matrices = {}
@@ -142,19 +142,19 @@ def simulate(
     position_usd: float,
 ) -> pd.DataFrame:
     """
-    Pour chaque sample du test set, prédit et calcule le P&L.
-    Retourne un DataFrame avec une ligne par trade tenté.
+    Pour chaque sample du test set, predit et calcule le P&L.
+    Retourne un DataFrame avec une ligne par trade tente.
     """
-    # On travaille sur window=20 pour avoir le test set de référence
+    # On travaille sur window=20 pour avoir le test set de reference
     # (le plus grand nombre de samples)
     ref_window = min(matrices.keys())
     _, _, ref_times = matrices[ref_window]
 
-    # Index du test set basé sur la date de coupure
+    # Index du test set base sur la date de coupure
     ref_dt = pd.to_datetime(ref_times, utc=True)
     test_mask_ref = ref_dt >= test_cutoff
 
-    # Récupère le close et open réels du df pour chaque target
+    # Recupere le close et open reels du df pour chaque target
     close_arr = np.asarray(df["close"].values, dtype="float64")
     open_arr  = np.asarray(df["open"].values,  dtype="float64")
 
@@ -202,8 +202,8 @@ def simulate(
             skipped += 1
             continue
 
-        # Résultat réel
-        # target_idx dans df : sample j du window w → j + window + 2
+        # Resultat reel
+        # target_idx dans df : sample j du window w -> j + window + 2
         target_idx = j + window + 2
         if target_idx >= len(df):
             skipped += 1
@@ -236,12 +236,12 @@ def simulate(
         })
 
     if skipped:
-        print(f"  ({skipped} samples ignorés : seuil conf ou hors-index)")
+        print(f"  ({skipped} samples ignores : seuil conf ou hors-index)")
     return pd.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------
-# Métriques
+# Metriques
 # ---------------------------------------------------------------------------
 
 def compute_metrics(trades: pd.DataFrame, position_usd: float) -> dict:
@@ -262,7 +262,7 @@ def compute_metrics(trades: pd.DataFrame, position_usd: float) -> dict:
     drawdown = equity - running_max
     max_dd   = drawdown.min()
 
-    # Sharpe annualisé (sur rendements par trade)
+    # Sharpe annualise (sur rendements par trade)
     returns = trades["pnl_usd"] / position_usd
     mean_r  = returns.mean()
     std_r   = returns.std()
@@ -315,9 +315,9 @@ def print_report(metrics: dict, slot_metrics: list[dict],
                  test_cutoff: pd.Timestamp, confidence_threshold: float,
                  position_usd: float) -> None:
     print("\n" + "=" * 70)
-    print("BACKTEST SCHEDULE — RAPPORT COMPLET")
+    print("BACKTEST SCHEDULE -- RAPPORT COMPLET")
     print("=" * 70)
-    print(f"Période test  : {test_cutoff.date()} → aujourd'hui (dernier 20%)")
+    print(f"Periode test  : {test_cutoff.date()} -> aujourd'hui (dernier 20%)")
     print(f"Position      : ${position_usd:.0f} par trade")
     print(f"Frais         : {FEE_RT*100:.1f}% round-trip (Binance 0.1%+0.1%)")
     print(f"Seuil conf.   : {confidence_threshold:.1f}%")
@@ -350,21 +350,21 @@ def print_report(metrics: dict, slot_metrics: list[dict],
 def main():
     parser = argparse.ArgumentParser(description="Backtest historique du schedule")
     parser.add_argument("--confidence", type=float, default=0.0,
-                        help="Seuil de confiance minimum en %% (défaut: 0 = tous les trades)")
+                        help="Seuil de confiance minimum en %% (defaut: 0 = tous les trades)")
     parser.add_argument("--position", type=float, default=1000.0,
-                        help="Taille de position en USD par trade (défaut: $1000)")
+                        help="Taille de position en USD par trade (defaut: $1000)")
     parser.add_argument("--start", type=str, default=None,
-                        help="Date de début des données (ex: '1 year ago UTC')")
+                        help="Date de debut des donnees (ex: '1 year ago UTC')")
     args = parser.parse_args()
 
-    print(f"Chargement des données {SYMBOL} {INTERVAL}...")
+    print(f"Chargement des donnees {SYMBOL} {INTERVAL}...")
     df = load_klines(SYMBOL, INTERVAL)
     if args.start:
         cutoff_data = _parse_start(args.start)
         df = df[df["open_time"] >= cutoff_data].reset_index(drop=True)
         print(f"Filtre depuis {cutoff_data.date()} : {len(df)} bougies.")
     else:
-        print(f"{len(df)} bougies chargées.")
+        print(f"{len(df)} bougies chargees.")
 
     schedule = load_schedule()
     model_cache = ModelCache()
@@ -376,7 +376,7 @@ def main():
     ref_times = matrices[min(matrices.keys())][2]
     ref_dt = pd.to_datetime(ref_times, utc=True)
     test_cutoff = ref_dt[int(len(ref_dt) * (1 - TEST_RATIO))]
-    print(f"\nTest set : {test_cutoff.date()} → {ref_dt[-1].date()} ({TEST_RATIO*100:.0f}% des données)")
+    print(f"\nTest set : {test_cutoff.date()} -> {ref_dt[-1].date()} ({TEST_RATIO*100:.0f}% des donnees)")
     print(f"Seuil confiance : {args.confidence:.1f}%  |  Position : ${args.position:.0f}\n")
 
     print("Simulation en cours...")
@@ -384,7 +384,7 @@ def main():
                       test_cutoff, args.confidence, args.position)
 
     if trades.empty:
-        print("Aucun trade effectué — essaie de baisser --confidence")
+        print("Aucun trade effectue -- essaie de baisser --confidence")
         return
 
     metrics      = compute_metrics(trades, args.position)
