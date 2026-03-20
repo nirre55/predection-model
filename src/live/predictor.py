@@ -1,7 +1,7 @@
 import csv
 import time
 import collections
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -12,29 +12,33 @@ from src.data.fetcher import fetch_klines
 
 PREDICTIONS_CSV = Path("models/predictions.csv")
 _CSV_FIELDS = [
-    "predicted_at", "candle_open", "candle_close",
-    "slot", "direction", "probability_pct",
+    "predicted_at", "candle_open", "candle_close", "slot",
+    "predicted_direction", "probability_pct",
     "other_direction", "other_probability_pct", "confidence_pct",
+    "actual_direction", "result",
 ]
 
 
-def _append_csv(pred: "Prediction", confidence: float) -> None:
+def _append_csv(pred: "Prediction", confidence: float,
+                actual_direction: str, result: str) -> None:
     is_new = not PREDICTIONS_CSV.exists()
+    other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
     with PREDICTIONS_CSV.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS)
         if is_new:
             writer.writeheader()
-        other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
         writer.writerow({
-            "predicted_at":        pred.predicted_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "candle_open":         pred.candle_open.strftime("%Y-%m-%d %H:%M"),
-            "candle_close":        pred.candle_close.strftime("%Y-%m-%d %H:%M"),
-            "slot":                pred.model_slot,
-            "direction":           pred.direction,
-            "probability_pct":     f"{pred.probability * 100:.2f}",
-            "other_direction":     other_direction,
+            "predicted_at":          pred.predicted_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "candle_open":           pred.candle_open.strftime("%Y-%m-%d %H:%M"),
+            "candle_close":          pred.candle_close.strftime("%Y-%m-%d %H:%M"),
+            "slot":                  pred.model_slot,
+            "predicted_direction":   pred.direction,
+            "probability_pct":       f"{pred.probability * 100:.2f}",
+            "other_direction":       other_direction,
             "other_probability_pct": f"{(1 - pred.probability) * 100:.2f}",
-            "confidence_pct":      f"{confidence:.2f}",
+            "confidence_pct":        f"{confidence:.2f}",
+            "actual_direction":      actual_direction,
+            "result":                result,
         })
 
 
@@ -48,6 +52,13 @@ class Prediction:
     model_slot: str = "default"
 
 
+@dataclass
+class _Pending:
+    """Prédiction en attente de vérification (bougie pas encore fermée)."""
+    pred: Prediction
+    confidence: float
+
+
 class LivePredictor:
     def __init__(
         self,
@@ -58,9 +69,8 @@ class LivePredictor:
     ):
         self.symbol = symbol
         self.interval = interval
-        self.window = window  # fenêtre par défaut (peut être surchargée par le scheduler)
+        self.window = window
 
-        # Utilise le scheduler si schedule.json existe, sinon modèle unique
         if sched.has_schedule():
             self._scheduler = sched.ModelScheduler()
             self._single_model = None
@@ -130,8 +140,6 @@ class LivePredictor:
         )
 
     def start(self):
-        # Initialise le buffer avec la fenêtre par défaut
-        # (sera recalibré au besoin si le scheduler change de window)
         now = datetime.now(timezone.utc)
         model, meta = self._get_model_and_meta(now)
         active_window = self._active_window(meta)
@@ -142,52 +150,72 @@ class LivePredictor:
         if self._scheduler is not None:
             print(self._scheduler.describe(now))
 
-        while True:
-            now = datetime.now(timezone.utc)
-            next_trigger = _next_trigger_time(now)
-            delay = (next_trigger - now).total_seconds()
-            if delay > 0:
-                time.sleep(delay)
+        pending: _Pending | None = None
 
-            now = datetime.now(timezone.utc)
-            model, meta = self._get_model_and_meta(now)
-            active_window = self._active_window(meta)
+        try:
+            while True:
+                now = datetime.now(timezone.utc)
+                next_trigger = _next_trigger_time(now)
+                delay = (next_trigger - now).total_seconds()
+                if delay > 0:
+                    time.sleep(delay)
 
-            # Resize le buffer si la fenêtre a changé (nouveau slot)
-            current_maxlen = self.buffer.maxlen or (active_window + 1)
-            if current_maxlen != active_window + 1:
-                print(f"[Scheduler] Changement de fenetre : {current_maxlen - 1} -> {active_window}")
-                self.buffer = self._init_buffer(active_window)
+                now = datetime.now(timezone.utc)
+                model, meta = self._get_model_and_meta(now)
+                active_window = self._active_window(meta)
 
-            df = fetch_klines(self.symbol, self.interval, limit=2)
-            last_closed = df.iloc[-2]
-            self.buffer.append({
-                "open_time": last_closed["open_time"],
-                "open": last_closed["open"],
-                "high": last_closed["high"],
-                "low": last_closed["low"],
-                "close": last_closed["close"],
-                "volume": last_closed["volume"],
-            })
+                current_maxlen = self.buffer.maxlen or (active_window + 1)
+                if current_maxlen != active_window + 1:
+                    print(f"[Scheduler] Changement de fenetre : {current_maxlen - 1} -> {active_window}")
+                    self.buffer = self._init_buffer(active_window)
 
-            # La bougie prédite s'ouvre maintenant
-            pred_time = _current_candle_open(now)
-            pred = self.predict(self.buffer, model, meta, predict_time=pred_time)
+                df = fetch_klines(self.symbol, self.interval, limit=2)
+                last_closed = df.iloc[-2]
 
-            other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
-            other_prob = 1.0 - pred.probability
+                # --- Résoudre la prédiction précédente ---
+                if pending is not None:
+                    actual_green = float(last_closed["close"]) > float(last_closed["open"])
+                    actual_dir = "VERT" if actual_green else "ROUGE"
+                    result = "WIN" if actual_dir == pending.pred.direction else "LOSS"
+                    _append_csv(pending.pred, pending.confidence, actual_dir, result)
+                    result_str = "WIN" if result == "WIN" else "LOSS"
+                    print(f"  --> Bougie fermee : {actual_dir} | {result_str}")
 
-            open_str = pred.candle_open.strftime("%H:%M")
-            close_str = pred.candle_close.strftime("%H:%M")
-            slot_str = f" [{pred.model_slot}]" if pred.model_slot != "default" else ""
-            confidence = abs(pred.probability - 0.5) * 200  # 0% = neutre, 100% = certain
-            conf_str = f"conf={confidence:.1f}%"
-            print(
-                f"[{open_str}->{close_str}]{slot_str} "
-                f"{pred.direction} {pred.probability:.2%} | "
-                f"{other_direction} {other_prob:.2%} | {conf_str}"
-            )
-            _append_csv(pred, confidence)
+                # --- Mettre à jour le buffer ---
+                self.buffer.append({
+                    "open_time": last_closed["open_time"],
+                    "open": last_closed["open"],
+                    "high": last_closed["high"],
+                    "low": last_closed["low"],
+                    "close": last_closed["close"],
+                    "volume": last_closed["volume"],
+                })
+
+                # --- Nouvelle prédiction ---
+                pred_time = _current_candle_open(now)
+                pred = self.predict(self.buffer, model, meta, predict_time=pred_time)
+
+                other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
+                other_prob = 1.0 - pred.probability
+                confidence = abs(pred.probability - 0.5) * 200
+                conf_str = f"conf={confidence:.1f}%"
+
+                open_str = pred.candle_open.strftime("%H:%M")
+                close_str = pred.candle_close.strftime("%H:%M")
+                slot_str = f" [{pred.model_slot}]" if pred.model_slot != "default" else ""
+                print(
+                    f"[{open_str}->{close_str}]{slot_str} "
+                    f"{pred.direction} {pred.probability:.2%} | "
+                    f"{other_direction} {other_prob:.2%} | {conf_str}"
+                )
+
+                pending = _Pending(pred=pred, confidence=confidence)
+
+        except KeyboardInterrupt:
+            # Écrire la dernière prédiction comme PENDING si le programme est arrêté
+            if pending is not None:
+                _append_csv(pending.pred, pending.confidence, "PENDING", "PENDING")
+                print("\n[CSV] Derniere prediction sauvegardee comme PENDING.")
 
 
 def _current_candle_open(now: datetime) -> datetime:
