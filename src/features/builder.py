@@ -1,4 +1,5 @@
 import collections
+from collections.abc import Callable
 from datetime import datetime
 
 import numpy as np
@@ -14,7 +15,7 @@ from src.features.indicators import (
 from src.features import time_features as tf
 
 # Registre des indicateurs disponibles (même interface qu'ablation.py)
-INDICATOR_REGISTRY: dict[str, callable] = {
+INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
     "rsi": lambda df: compute_rsi(np.asarray(df["close"].values, dtype="float64")),
     "macd": lambda df: compute_macd_histogram(np.asarray(df["close"].values, dtype="float64")),
     "bb": lambda df: compute_bollinger_pct(np.asarray(df["close"].values, dtype="float64")),

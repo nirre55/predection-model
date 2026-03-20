@@ -125,8 +125,9 @@ class LivePredictor:
             active_window = self._active_window(meta)
 
             # Resize le buffer si la fenêtre a changé (nouveau slot)
-            if self.buffer.maxlen != active_window + 1:
-                print(f"[Scheduler] Changement de fenetre : {self.buffer.maxlen - 1} -> {active_window}")
+            current_maxlen = self.buffer.maxlen or (active_window + 1)
+            if current_maxlen != active_window + 1:
+                print(f"[Scheduler] Changement de fenetre : {current_maxlen - 1} -> {active_window}")
                 self.buffer = self._init_buffer(active_window)
 
             df = fetch_klines(self.symbol, self.interval, limit=2)

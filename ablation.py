@@ -8,6 +8,7 @@ Usage:
 
 import json
 import warnings
+from collections.abc import Callable
 from datetime import datetime, timezone
 from itertools import combinations
 from pathlib import Path
@@ -38,7 +39,7 @@ RESULTS_PATH = Path("models/ablation_results.json")
 
 # --- Définition des indicateurs disponibles ---
 
-INDICATOR_REGISTRY: dict[str, callable] = {
+INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
     "rsi": lambda df: compute_rsi(np.asarray(df["close"].values, dtype="float64")),
     "macd": lambda df: compute_macd_histogram(np.asarray(df["close"].values, dtype="float64")),
     "bb": lambda df: compute_bollinger_pct(np.asarray(df["close"].values, dtype="float64")),
@@ -154,7 +155,7 @@ def run_ablation():
             print(f"{combo_name:<40} ERREUR: {e}")
 
     # Sauvegarder le meilleur modèle
-    if best_model is not None:
+    if best_model is not None and best_meta is not None:
         save_model(best_model, best_meta)
         print(f"\n[OK] Meilleur modele sauvegarde : {best_combo} (score={best_score:.4f})")
 

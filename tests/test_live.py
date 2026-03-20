@@ -1,10 +1,13 @@
 import collections
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
 from src.live.predictor import LivePredictor, Prediction
+
+_NOW = datetime.now(timezone.utc)
 
 
 def _make_mock_deque(window: int = 50) -> collections.deque:
@@ -21,21 +24,28 @@ def _make_mock_deque(window: int = 50) -> collections.deque:
     return candles
 
 
-def test_predict_returns_prediction_dataclass():
-    window = 50
-    mock_model = MagicMock()
-    mock_model.predict_proba.return_value = np.array([[0.35, 0.65]])
-
-    with patch("src.live.predictor.serializer.load_model", return_value=(mock_model, {"window": window})):
-        predictor = LivePredictor(
+def _make_predictor(window: int, mock_model) -> LivePredictor:
+    """Crée un LivePredictor avec un modèle mocké (sans scheduler)."""
+    meta = {"window": window, "indicators": None, "include_time": False}
+    with patch("src.live.predictor.sched.has_schedule", return_value=False), \
+         patch("src.live.predictor.serializer.load_model", return_value=(mock_model, meta)):
+        return LivePredictor(
             symbol="BTCUSDT",
             interval="5m",
             window=window,
             model_path="models/model_calibrated.pkl",
         )
 
+
+def test_predict_returns_prediction_dataclass():
+    window = 50
+    mock_model = MagicMock()
+    mock_model.predict_proba.return_value = np.array([[0.35, 0.65]])
+    meta = {"window": window, "indicators": None, "include_time": False}
+
+    predictor = _make_predictor(window, mock_model)
     candles = _make_mock_deque(window)
-    pred = predictor.predict(candles)
+    pred = predictor.predict(candles, mock_model, meta, predict_time=_NOW)
 
     assert isinstance(pred, Prediction)
 
@@ -44,12 +54,11 @@ def test_predict_direction_vert():
     window = 50
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = np.array([[0.30, 0.70]])
+    meta = {"window": window, "indicators": None, "include_time": False}
 
-    with patch("src.live.predictor.serializer.load_model", return_value=(mock_model, {"window": window})):
-        predictor = LivePredictor("BTCUSDT", "5m", window)
-
+    predictor = _make_predictor(window, mock_model)
     candles = _make_mock_deque(window)
-    pred = predictor.predict(candles)
+    pred = predictor.predict(candles, mock_model, meta, predict_time=_NOW)
 
     assert pred.direction == "VERT"
     assert 0.0 <= pred.probability <= 1.0
@@ -59,12 +68,11 @@ def test_predict_direction_rouge():
     window = 50
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = np.array([[0.72, 0.28]])
+    meta = {"window": window, "indicators": None, "include_time": False}
 
-    with patch("src.live.predictor.serializer.load_model", return_value=(mock_model, {"window": window})):
-        predictor = LivePredictor("BTCUSDT", "5m", window)
-
+    predictor = _make_predictor(window, mock_model)
     candles = _make_mock_deque(window)
-    pred = predictor.predict(candles)
+    pred = predictor.predict(candles, mock_model, meta, predict_time=_NOW)
 
     assert pred.direction == "ROUGE"
     assert 0.0 <= pred.probability <= 1.0
@@ -74,12 +82,11 @@ def test_predict_direction_in_valid_set():
     window = 50
     mock_model = MagicMock()
     mock_model.predict_proba.return_value = np.array([[0.50, 0.50]])
+    meta = {"window": window, "indicators": None, "include_time": False}
 
-    with patch("src.live.predictor.serializer.load_model", return_value=(mock_model, {"window": window})):
-        predictor = LivePredictor("BTCUSDT", "5m", window)
-
+    predictor = _make_predictor(window, mock_model)
     candles = _make_mock_deque(window)
-    pred = predictor.predict(candles)
+    pred = predictor.predict(candles, mock_model, meta, predict_time=_NOW)
 
     assert pred.direction in {"VERT", "ROUGE"}
     assert 0.0 <= pred.probability <= 1.0
