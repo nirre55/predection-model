@@ -1,12 +1,41 @@
+import csv
 import time
 import collections
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 from src.model import serializer
 from src.model import scheduler as sched
 from src.features import builder
 from src.data.fetcher import fetch_klines
+
+PREDICTIONS_CSV = Path("models/predictions.csv")
+_CSV_FIELDS = [
+    "predicted_at", "candle_open", "candle_close",
+    "slot", "direction", "probability_pct",
+    "other_direction", "other_probability_pct", "confidence_pct",
+]
+
+
+def _append_csv(pred: "Prediction", confidence: float) -> None:
+    is_new = not PREDICTIONS_CSV.exists()
+    with PREDICTIONS_CSV.open("a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS)
+        if is_new:
+            writer.writeheader()
+        other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
+        writer.writerow({
+            "predicted_at":        pred.predicted_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "candle_open":         pred.candle_open.strftime("%Y-%m-%d %H:%M"),
+            "candle_close":        pred.candle_close.strftime("%Y-%m-%d %H:%M"),
+            "slot":                pred.model_slot,
+            "direction":           pred.direction,
+            "probability_pct":     f"{pred.probability * 100:.2f}",
+            "other_direction":     other_direction,
+            "other_probability_pct": f"{(1 - pred.probability) * 100:.2f}",
+            "confidence_pct":      f"{confidence:.2f}",
+        })
 
 
 @dataclass
@@ -158,6 +187,7 @@ class LivePredictor:
                 f"{pred.direction} {pred.probability:.2%} | "
                 f"{other_direction} {other_prob:.2%} | {conf_str}"
             )
+            _append_csv(pred, confidence)
 
 
 def _current_candle_open(now: datetime) -> datetime:
