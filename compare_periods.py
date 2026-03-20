@@ -73,12 +73,44 @@ OUT_DIR = Path("models")
 
 # --- Helpers ---
 
+def _parse_start(start: str) -> pd.Timestamp:
+    """
+    Parse une date relative ("1 year ago UTC", "6 months ago UTC")
+    ou absolue ("2024-01-01") en Timestamp UTC.
+    """
+    import re
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    s = start.lower().replace("utc", "").strip()
+
+    m = re.match(r"(\d+)\s+(year|month|week|day)s?\s+ago", s)
+    if m:
+        n, unit = int(m.group(1)), m.group(2)
+        if unit == "year":
+            cutoff = now.replace(year=now.year - n)
+        elif unit == "month":
+            month = now.month - n
+            year  = now.year
+            while month <= 0:
+                month += 12
+                year  -= 1
+            cutoff = now.replace(year=year, month=month)
+        elif unit == "week":
+            cutoff = now - timedelta(weeks=n)
+        else:
+            cutoff = now - timedelta(days=n)
+        return pd.Timestamp(cutoff)
+
+    # Format absolu
+    ts = pd.Timestamp(start)
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts
+
+
 def filter_df(df: pd.DataFrame, start: str | None) -> pd.DataFrame:
     if start is None:
         return df
-    cutoff = pd.Timestamp(start)
-    if cutoff.tzinfo is None:
-        cutoff = cutoff.tz_localize("UTC")
+    cutoff = _parse_start(start)
     return df[df["open_time"] >= cutoff].reset_index(drop=True)
 
 

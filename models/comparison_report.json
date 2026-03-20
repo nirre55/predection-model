@@ -1,0 +1,821 @@
+{
+  "generated_at": "2026-03-20T15:45:37.256123+00:00",
+  "periods": [
+    "5_ans_live",
+    "1_an",
+    "6_mois",
+    "3_mois"
+  ],
+  "global": [
+    {
+      "period": "5_ans_live",
+      "n_candles": 525709,
+      "n_samples": 525657,
+      "model_type": "lgbm",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.509674,
+      "profit_factor": 1.039614,
+      "score": 0.513727
+    },
+    {
+      "period": "5_ans_live",
+      "n_candles": 525709,
+      "n_samples": 525657,
+      "model_type": "xgb",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.507103,
+      "profit_factor": 1.0289,
+      "score": 0.510042
+    },
+    {
+      "period": "1_an",
+      "n_candles": 104842,
+      "n_samples": 104790,
+      "model_type": "lgbm",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.501494,
+      "profit_factor": 1.006059,
+      "score": 0.502108
+    },
+    {
+      "period": "1_an",
+      "n_candles": 104842,
+      "n_samples": 104790,
+      "model_type": "xgb",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.500395,
+      "profit_factor": 1.001794,
+      "score": 0.500596
+    },
+    {
+      "period": "6_mois",
+      "n_candles": 51850,
+      "n_samples": 51798,
+      "model_type": "lgbm",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.498575,
+      "profit_factor": 0.994335,
+      "score": 0.498012
+    },
+    {
+      "period": "6_mois",
+      "n_candles": 51850,
+      "n_samples": 51798,
+      "model_type": "xgb",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.498483,
+      "profit_factor": 0.994039,
+      "score": 0.497897
+    },
+    {
+      "period": "3_mois",
+      "n_candles": 25642,
+      "n_samples": 25590,
+      "model_type": "lgbm",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.495756,
+      "profit_factor": 0.98326,
+      "score": 0.494106
+    },
+    {
+      "period": "3_mois",
+      "n_candles": 25642,
+      "n_samples": 25590,
+      "model_type": "xgb",
+      "window": 50,
+      "indicators": "rsi+macd+atr",
+      "accuracy": 0.50007,
+      "profit_factor": 1.000733,
+      "score": 0.500189
+    }
+  ],
+  "slots": [
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_9_20",
+      "model_type": "lgbm",
+      "n_samples": 34452,
+      "accuracy": 0.510867,
+      "profit_factor": 1.044674,
+      "score": 0.515455
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_9_20",
+      "model_type": "xgb",
+      "n_samples": 34452,
+      "accuracy": 0.512052,
+      "profit_factor": 1.049637,
+      "score": 0.517158
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_0_9",
+      "model_type": "lgbm",
+      "n_samples": 28132,
+      "accuracy": 0.506314,
+      "profit_factor": 1.025969,
+      "score": 0.508982
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_0_9",
+      "model_type": "xgb",
+      "n_samples": 28132,
+      "accuracy": 0.501706,
+      "profit_factor": 1.007093,
+      "score": 0.502443
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_20_24",
+      "model_type": "lgbm",
+      "n_samples": 12528,
+      "accuracy": 0.5,
+      "profit_factor": 1.000967,
+      "score": 0.500193
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "sunday_20_24",
+      "model_type": "xgb",
+      "n_samples": 12528,
+      "accuracy": 0.502586,
+      "profit_factor": 1.012612,
+      "score": 0.504074
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "friday_all",
+      "model_type": "lgbm",
+      "n_samples": 74880,
+      "accuracy": 0.501859,
+      "profit_factor": 1.007682,
+      "score": 0.502652
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "friday_all",
+      "model_type": "xgb",
+      "n_samples": 74880,
+      "accuracy": 0.501218,
+      "profit_factor": 1.004982,
+      "score": 0.501727
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_7_14",
+      "model_type": "lgbm",
+      "n_samples": 21924,
+      "accuracy": 0.510345,
+      "profit_factor": 1.042524,
+      "score": 0.514712
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_7_14",
+      "model_type": "xgb",
+      "n_samples": 21924,
+      "accuracy": 0.512589,
+      "profit_factor": 1.052111,
+      "score": 0.517976
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_0_7",
+      "model_type": "lgbm",
+      "n_samples": 21924,
+      "accuracy": 0.506842,
+      "profit_factor": 1.027904,
+      "score": 0.509686
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_0_7",
+      "model_type": "xgb",
+      "n_samples": 21924,
+      "accuracy": 0.507225,
+      "profit_factor": 1.029726,
+      "score": 0.51028
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_14_24",
+      "model_type": "lgbm",
+      "n_samples": 31320,
+      "accuracy": 0.497088,
+      "profit_factor": 0.989043,
+      "score": 0.496062
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "saturday_14_24",
+      "model_type": "xgb",
+      "n_samples": 31320,
+      "accuracy": 0.500613,
+      "profit_factor": 1.002634,
+      "score": 0.500895
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_day",
+      "model_type": "lgbm",
+      "n_samples": 162797,
+      "accuracy": 0.503494,
+      "profit_factor": 1.014158,
+      "score": 0.504928
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_day",
+      "model_type": "xgb",
+      "n_samples": 162797,
+      "accuracy": 0.501172,
+      "profit_factor": 1.004715,
+      "score": 0.501646
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_night",
+      "model_type": "lgbm",
+      "n_samples": 87666,
+      "accuracy": 0.503744,
+      "profit_factor": 1.015161,
+      "score": 0.505278
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_night",
+      "model_type": "xgb",
+      "n_samples": 87666,
+      "accuracy": 0.503347,
+      "profit_factor": 1.013671,
+      "score": 0.504742
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_eve",
+      "model_type": "lgbm",
+      "n_samples": 50064,
+      "accuracy": 0.504099,
+      "profit_factor": 1.016852,
+      "score": 0.50583
+    },
+    {
+      "period": "5_ans_live",
+      "slot": "weekdays_eve",
+      "model_type": "xgb",
+      "n_samples": 50064,
+      "accuracy": 0.503356,
+      "profit_factor": 1.013952,
+      "score": 0.504804
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_9_20",
+      "model_type": "lgbm",
+      "n_samples": 6864,
+      "accuracy": 0.497203,
+      "profit_factor": 0.990617,
+      "score": 0.496445
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_9_20",
+      "model_type": "xgb",
+      "n_samples": 6864,
+      "accuracy": 0.493357,
+      "profit_factor": 0.975013,
+      "score": 0.491017
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_0_9",
+      "model_type": "lgbm",
+      "n_samples": 5616,
+      "accuracy": 0.500214,
+      "profit_factor": 1.004286,
+      "score": 0.500985
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_0_9",
+      "model_type": "xgb",
+      "n_samples": 5616,
+      "accuracy": 0.494017,
+      "profit_factor": 0.979791,
+      "score": 0.492368
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_20_24",
+      "model_type": "lgbm",
+      "n_samples": 2496,
+      "accuracy": 0.511538,
+      "profit_factor": 1.051003,
+      "score": 0.517124
+    },
+    {
+      "period": "1_an",
+      "slot": "sunday_20_24",
+      "model_type": "xgb",
+      "n_samples": 2496,
+      "accuracy": 0.513462,
+      "profit_factor": 1.056205,
+      "score": 0.519318
+    },
+    {
+      "period": "1_an",
+      "slot": "friday_all",
+      "model_type": "lgbm",
+      "n_samples": 14976,
+      "accuracy": 0.498638,
+      "profit_factor": 0.994706,
+      "score": 0.498124
+    },
+    {
+      "period": "1_an",
+      "slot": "friday_all",
+      "model_type": "xgb",
+      "n_samples": 14976,
+      "accuracy": 0.5,
+      "profit_factor": 1.000337,
+      "score": 0.500067
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_7_14",
+      "model_type": "lgbm",
+      "n_samples": 4368,
+      "accuracy": 0.485714,
+      "profit_factor": 0.94632,
+      "score": 0.480693
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_7_14",
+      "model_type": "xgb",
+      "n_samples": 4368,
+      "accuracy": 0.495604,
+      "profit_factor": 0.983583,
+      "score": 0.494079
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_0_7",
+      "model_type": "lgbm",
+      "n_samples": 4368,
+      "accuracy": 0.496703,
+      "profit_factor": 0.989232,
+      "score": 0.495868
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_0_7",
+      "model_type": "xgb",
+      "n_samples": 4368,
+      "accuracy": 0.488462,
+      "profit_factor": 0.955888,
+      "score": 0.484254
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_14_24",
+      "model_type": "lgbm",
+      "n_samples": 6240,
+      "accuracy": 0.505,
+      "profit_factor": 1.020975,
+      "score": 0.507195
+    },
+    {
+      "period": "1_an",
+      "slot": "saturday_14_24",
+      "model_type": "xgb",
+      "n_samples": 6240,
+      "accuracy": 0.507115,
+      "profit_factor": 1.029823,
+      "score": 0.510234
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_day",
+      "model_type": "lgbm",
+      "n_samples": 32434,
+      "accuracy": 0.504385,
+      "profit_factor": 1.018447,
+      "score": 0.50632
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_day",
+      "model_type": "xgb",
+      "n_samples": 32434,
+      "accuracy": 0.502276,
+      "profit_factor": 1.00968,
+      "score": 0.503301
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_night",
+      "model_type": "lgbm",
+      "n_samples": 17472,
+      "accuracy": 0.500137,
+      "profit_factor": 1.00172,
+      "score": 0.500426
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_night",
+      "model_type": "xgb",
+      "n_samples": 17472,
+      "accuracy": 0.501511,
+      "profit_factor": 1.006927,
+      "score": 0.502292
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_eve",
+      "model_type": "lgbm",
+      "n_samples": 9984,
+      "accuracy": 0.510817,
+      "profit_factor": 1.045622,
+      "score": 0.515615
+    },
+    {
+      "period": "1_an",
+      "slot": "weekdays_eve",
+      "model_type": "xgb",
+      "n_samples": 9984,
+      "accuracy": 0.505409,
+      "profit_factor": 1.022619,
+      "score": 0.507769
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_9_20",
+      "model_type": "lgbm",
+      "n_samples": 3432,
+      "accuracy": 0.488462,
+      "profit_factor": 0.957061,
+      "score": 0.484489
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_9_20",
+      "model_type": "xgb",
+      "n_samples": 3432,
+      "accuracy": 0.484266,
+      "profit_factor": 0.941509,
+      "score": 0.478861
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_0_9",
+      "model_type": "lgbm",
+      "n_samples": 2808,
+      "accuracy": 0.497436,
+      "profit_factor": 0.993005,
+      "score": 0.497062
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_0_9",
+      "model_type": "xgb",
+      "n_samples": 2808,
+      "accuracy": 0.496154,
+      "profit_factor": 0.988778,
+      "score": 0.495448
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_20_24",
+      "model_type": "lgbm",
+      "n_samples": 1248,
+      "accuracy": 0.469231,
+      "profit_factor": 0.888961,
+      "score": 0.459331
+    },
+    {
+      "period": "6_mois",
+      "slot": "sunday_20_24",
+      "model_type": "xgb",
+      "n_samples": 1248,
+      "accuracy": 0.463462,
+      "profit_factor": 0.869259,
+      "score": 0.451929
+    },
+    {
+      "period": "6_mois",
+      "slot": "friday_all",
+      "model_type": "lgbm",
+      "n_samples": 7200,
+      "accuracy": 0.508167,
+      "profit_factor": 1.037666,
+      "score": 0.512433
+    },
+    {
+      "period": "6_mois",
+      "slot": "friday_all",
+      "model_type": "xgb",
+      "n_samples": 7200,
+      "accuracy": 0.5105,
+      "profit_factor": 1.045388,
+      "score": 0.515378
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_7_14",
+      "model_type": "lgbm",
+      "n_samples": 2100,
+      "accuracy": 0.496,
+      "profit_factor": 0.985396,
+      "score": 0.494679
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_7_14",
+      "model_type": "xgb",
+      "n_samples": 2100,
+      "accuracy": 0.500571,
+      "profit_factor": 1.003691,
+      "score": 0.501081
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_0_7",
+      "model_type": "lgbm",
+      "n_samples": 2100,
+      "accuracy": 0.486286,
+      "profit_factor": 0.950331,
+      "score": 0.481838
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_0_7",
+      "model_type": "xgb",
+      "n_samples": 2100,
+      "accuracy": 0.5,
+      "profit_factor": 1.00103,
+      "score": 0.500206
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_14_24",
+      "model_type": "lgbm",
+      "n_samples": 3077,
+      "accuracy": 0.485547,
+      "profit_factor": 0.944801,
+      "score": 0.480288
+    },
+    {
+      "period": "6_mois",
+      "slot": "saturday_14_24",
+      "model_type": "xgb",
+      "n_samples": 3077,
+      "accuracy": 0.495703,
+      "profit_factor": 0.984147,
+      "score": 0.494251
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_day",
+      "model_type": "lgbm",
+      "n_samples": 16181,
+      "accuracy": 0.491024,
+      "profit_factor": 0.965533,
+      "score": 0.487721
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_day",
+      "model_type": "xgb",
+      "n_samples": 16181,
+      "accuracy": 0.493027,
+      "profit_factor": 0.973333,
+      "score": 0.490483
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_night",
+      "model_type": "lgbm",
+      "n_samples": 8736,
+      "accuracy": 0.508379,
+      "profit_factor": 1.034261,
+      "score": 0.51188
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_night",
+      "model_type": "xgb",
+      "n_samples": 8736,
+      "accuracy": 0.505495,
+      "profit_factor": 1.022788,
+      "score": 0.507854
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_eve",
+      "model_type": "lgbm",
+      "n_samples": 4944,
+      "accuracy": 0.501942,
+      "profit_factor": 1.008951,
+      "score": 0.502955
+    },
+    {
+      "period": "6_mois",
+      "slot": "weekdays_eve",
+      "model_type": "xgb",
+      "n_samples": 4944,
+      "accuracy": 0.48835,
+      "profit_factor": 0.955362,
+      "score": 0.484082
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_9_20",
+      "model_type": "lgbm",
+      "n_samples": 1716,
+      "accuracy": 0.487413,
+      "profit_factor": 0.952626,
+      "score": 0.482973
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_9_20",
+      "model_type": "xgb",
+      "n_samples": 1716,
+      "accuracy": 0.484615,
+      "profit_factor": 0.945921,
+      "score": 0.479954
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_0_9",
+      "model_type": "lgbm",
+      "n_samples": 1404,
+      "accuracy": 0.500855,
+      "profit_factor": 1.013259,
+      "score": 0.503165
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_0_9",
+      "model_type": "xgb",
+      "n_samples": 1404,
+      "accuracy": 0.511966,
+      "profit_factor": 1.056858,
+      "score": 0.518551
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_20_24",
+      "model_type": "lgbm",
+      "n_samples": 624,
+      "accuracy": 0.507692,
+      "profit_factor": 1.06997,
+      "score": 0.518609
+    },
+    {
+      "period": "3_mois",
+      "slot": "sunday_20_24",
+      "model_type": "xgb",
+      "n_samples": 624,
+      "accuracy": 0.484615,
+      "profit_factor": 0.941005,
+      "score": 0.47897
+    },
+    {
+      "period": "3_mois",
+      "slot": "friday_all",
+      "model_type": "lgbm",
+      "n_samples": 3456,
+      "accuracy": 0.497222,
+      "profit_factor": 0.99174,
+      "score": 0.496681
+    },
+    {
+      "period": "3_mois",
+      "slot": "friday_all",
+      "model_type": "xgb",
+      "n_samples": 3456,
+      "accuracy": 0.511458,
+      "profit_factor": 1.050803,
+      "score": 0.517036
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_7_14",
+      "model_type": "lgbm",
+      "n_samples": 1008,
+      "accuracy": 0.521429,
+      "profit_factor": 1.122483,
+      "score": 0.537354
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_7_14",
+      "model_type": "xgb",
+      "n_samples": 1008,
+      "accuracy": 0.517857,
+      "profit_factor": 1.109007,
+      "score": 0.532516
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_0_7",
+      "model_type": "lgbm",
+      "n_samples": 1008,
+      "accuracy": 0.510714,
+      "profit_factor": 1.054226,
+      "score": 0.517274
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_0_7",
+      "model_type": "xgb",
+      "n_samples": 1008,
+      "accuracy": 0.516667,
+      "profit_factor": 1.075118,
+      "score": 0.525024
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_14_24",
+      "model_type": "lgbm",
+      "n_samples": 1517,
+      "accuracy": 0.50873,
+      "profit_factor": 1.037293,
+      "score": 0.512697
+    },
+    {
+      "period": "3_mois",
+      "slot": "saturday_14_24",
+      "model_type": "xgb",
+      "n_samples": 1517,
+      "accuracy": 0.513492,
+      "profit_factor": 1.056792,
+      "score": 0.519454
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_day",
+      "model_type": "lgbm",
+      "n_samples": 8069,
+      "accuracy": 0.494494,
+      "profit_factor": 0.979984,
+      "score": 0.492693
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_day",
+      "model_type": "xgb",
+      "n_samples": 8069,
+      "accuracy": 0.49375,
+      "profit_factor": 0.97801,
+      "score": 0.491852
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_night",
+      "model_type": "lgbm",
+      "n_samples": 4368,
+      "accuracy": 0.498077,
+      "profit_factor": 0.994326,
+      "score": 0.497711
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_night",
+      "model_type": "xgb",
+      "n_samples": 4368,
+      "accuracy": 0.495604,
+      "profit_factor": 0.984477,
+      "score": 0.494258
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_eve",
+      "model_type": "lgbm",
+      "n_samples": 2448,
+      "accuracy": 0.491176,
+      "profit_factor": 0.969525,
+      "score": 0.488611
+    },
+    {
+      "period": "3_mois",
+      "slot": "weekdays_eve",
+      "model_type": "xgb",
+      "n_samples": 2448,
+      "accuracy": 0.501961,
+      "profit_factor": 1.011248,
+      "score": 0.503426
+    }
+  ]
+}

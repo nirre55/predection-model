@@ -1,0 +1,9 @@
+period,n_candles,n_samples,model_type,window,indicators,accuracy,profit_factor,score
+5_ans_live,525709,525657,lgbm,50,rsi+macd+atr,0.509674,1.039614,0.513727
+5_ans_live,525709,525657,xgb,50,rsi+macd+atr,0.507103,1.0289,0.510042
+1_an,104842,104790,lgbm,50,rsi+macd+atr,0.501494,1.006059,0.502108
+1_an,104842,104790,xgb,50,rsi+macd+atr,0.500395,1.001794,0.500596
+6_mois,51850,51798,lgbm,50,rsi+macd+atr,0.498575,0.994335,0.498012
+6_mois,51850,51798,xgb,50,rsi+macd+atr,0.498483,0.994039,0.497897
+3_mois,25642,25590,lgbm,50,rsi+macd+atr,0.495756,0.98326,0.494106
+3_mois,25642,25590,xgb,50,rsi+macd+atr,0.50007,1.000733,0.500189
