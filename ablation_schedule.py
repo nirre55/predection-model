@@ -9,6 +9,9 @@ Pour chaque slot (dimanche 9-20h, vendredi, samedi 7-14h, etc.) :
 
 Usage:
     python ablation_schedule.py
+    python ablation_schedule.py --start "1 year ago UTC"
+    python ablation_schedule.py --start "1 Jan 2024 UTC"
+    python ablation_schedule.py --start "2025-01-01"
 """
 
 import json
@@ -131,9 +134,13 @@ def run_slot(
     return best_result
 
 
-def run_schedule_ablation():
+def run_schedule_ablation(start: str | None = None):
     print(f"Chargement des données {SYMBOL} {INTERVAL}...")
     df = load_klines(SYMBOL, INTERVAL)
+    if start is not None:
+        cutoff = pd.Timestamp(start).tz_localize("UTC") if pd.Timestamp(start).tzinfo is None else pd.Timestamp(start)
+        df = df[df["open_time"] >= cutoff].reset_index(drop=True)
+        print(f"Filtre appliqué depuis {cutoff.date()} : {len(df)} bougies.")
     print(f"{len(df)} bougies chargées.\n")
 
     SCHEDULE_DIR.mkdir(parents=True, exist_ok=True)
@@ -250,4 +257,15 @@ def run_schedule_ablation():
 
 
 if __name__ == "__main__":
-    run_schedule_ablation()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Ablation temporelle par slot horaire")
+    parser.add_argument(
+        "--start",
+        type=str,
+        default=None,
+        help="Date de début du filtrage (ex: '1 year ago UTC', '2024-01-01'). "
+             "Défaut : toutes les données en cache.",
+    )
+    args = parser.parse_args()
+    run_schedule_ablation(start=args.start)

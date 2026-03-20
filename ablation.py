@@ -4,6 +4,9 @@ Teste chaque combinaison, conserve le meilleur modèle calibré.
 
 Usage:
     python ablation.py
+    python ablation.py --start "1 year ago UTC"
+    python ablation.py --start "1 Jan 2024 UTC"
+    python ablation.py --start "2025-01-01"
 """
 
 import json
@@ -84,9 +87,13 @@ def build_X_y(df: pd.DataFrame, active_indicators: list[str], window: int = WIND
     return X, y, price_moves
 
 
-def run_ablation():
+def run_ablation(start: str | None = None):
     print(f"Chargement des données {SYMBOL} {INTERVAL}...")
     df = load_klines(SYMBOL, INTERVAL)
+    if start is not None:
+        cutoff = pd.Timestamp(start).tz_localize("UTC") if pd.Timestamp(start).tzinfo is None else pd.Timestamp(start)
+        df = df[df["open_time"] >= cutoff].reset_index(drop=True)
+        print(f"Filtre appliqué depuis {cutoff.date()} : {len(df)} bougies.")
     print(f"{len(df)} bougies chargées.\n")
 
     indicator_names = list(INDICATOR_REGISTRY.keys())
@@ -174,4 +181,15 @@ def run_ablation():
 
 
 if __name__ == "__main__":
-    run_ablation()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Ablation study sur les indicateurs")
+    parser.add_argument(
+        "--start",
+        type=str,
+        default=None,
+        help="Date de début du filtrage (ex: '1 year ago UTC', '2024-01-01'). "
+             "Défaut : toutes les données en cache.",
+    )
+    args = parser.parse_args()
+    run_ablation(start=args.start)
