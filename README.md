@@ -237,6 +237,31 @@ uv run python backtest_schedule.py --confidence 5.0 --position 1000 --start "202
 
 ---
 
+### `utils/monthly_backtest_report.py` — Rapport detaille mois par mois
+
+Backteste chaque mois en solo sur les mois precedents, jusqu'a 5 ans maximum par defaut. Pour chaque mois, le script genere un dossier dedie avec `trades.csv` et `report.json` dans un format proche de `analyze_predictions.py`, puis un rapport maitre pour resumer l'ensemble des mois.
+
+```bash
+# Jusqu'a 5 ans de mois complets
+uv run python utils/monthly_backtest_report.py
+
+# Limiter a 24 mois
+uv run python utils/monthly_backtest_report.py --max-months 24
+
+# Ajouter un seuil de confiance et changer la position
+uv run python utils/monthly_backtest_report.py --confidence 5.0 --position 500
+```
+
+**Sorties :**
+- `utils/raports/monthly_backtest/months/YYYY-MM/trades.csv` — detail trade par trade du mois
+- `utils/raports/monthly_backtest/months/YYYY-MM/report.json` — rapport detaille du mois
+- `utils/raports/monthly_backtest/summary/monthly_backtest_summary.csv` — resume global par mois
+- `utils/raports/monthly_backtest/summary/monthly_backtest_by_slot.csv` — resume par slot et par mois
+- `utils/raports/monthly_backtest/summary/monthly_backtest_money_management.csv` — toutes les strategies de money management pour chaque mois
+- `utils/raports/monthly_backtest/summary/monthly_backtest_master_report.json` — rapport maitre avec meilleur mois, pire mois, mois positifs/negatifs, max win/loss
+
+---
+
 ## Predicteur live (`cli.py live`)
 
 Lance le predicteur en temps reel. Il se declenche automatiquement a chaque nouvelle bougie M5 (toutes les 5 minutes).

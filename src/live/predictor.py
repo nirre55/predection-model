@@ -230,6 +230,13 @@ class LivePredictor:
                     f"{other_direction} {other_prob:.2%} | {conf_str}"
                 )
 
+                # Seuil de confiance par slot (optionnel)
+                min_conf = meta.get("min_confidence_pct", 0.0)
+                if confidence < min_conf:
+                    print(f"  [SKIP] Confiance {confidence:.1f}% < seuil {min_conf:.1f}% — trade ignore")
+                    pending = None
+                    continue
+
                 pending = _Pending(pred=pred, confidence=confidence)
 
         except KeyboardInterrupt:

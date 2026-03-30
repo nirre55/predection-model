@@ -54,12 +54,12 @@ class ModelScheduler:
             h_start: int = slot["hour_start"]
             h_end: int = slot["hour_end"]
             if dow in dow_list and h_start <= hour < h_end:
-                return self._load(slot["model_path"], slot)
+                return self._load_with_slot(slot)
 
         # Aucun slot spécifique → modèle par défaut
         default = next((s for s in self._schedule if s.get("default")), None)
         if default:
-            return self._load(default["model_path"], default)
+            return self._load_with_slot(default)
 
         raise RuntimeError("Aucun slot de schedule trouvé et pas de modèle par défaut.")
 
@@ -81,7 +81,19 @@ class ModelScheduler:
                 )
         return f"Slot 'default' — {day_names[dow]} {hour:02d}h"
 
-    def _load(self, path: str, slot: dict) -> tuple:
+    def _load_with_slot(self, slot: dict) -> tuple:
+        """Charge le modèle et fusionne la config du slot dans la metadata."""
+        path = slot["model_path"]
         if path not in self._cache:
             self._cache[path] = load_model(path)
-        return self._cache[path]
+        model, meta = self._cache[path]
+        # Fusionne les paramètres live du slot (min_confidence_pct, window, etc.)
+        # dans la meta du modèle pour qu'ils soient accessibles au predictor.
+        merged = dict(meta)
+        for k, v in slot.items():
+            if k not in ("model_path", "default"):
+                merged.setdefault(k, v)
+        # min_confidence_pct du slot prend toujours la priorité
+        if "min_confidence_pct" in slot:
+            merged["min_confidence_pct"] = slot["min_confidence_pct"]
+        return model, merged

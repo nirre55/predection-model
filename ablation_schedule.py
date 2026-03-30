@@ -37,14 +37,14 @@ from src.model.serializer import save_model
 SYMBOL = "BTCUSDT"
 INTERVAL = "5m"
 N_SPLITS = 5
-BEST_INDICATORS = ["rsi", "macd", "atr"]   # meilleur combo de l'ablation globale
+BEST_INDICATORS = ["rsi", "macd", "atr", "mfi", "vdelta", "body", "streak"]
 INCLUDE_TIME = True                          # ajouter features heure/jour
 WINDOWS = [20, 50, 100]
 MODEL_TYPES = ["lgbm", "xgb"]
 SCHEDULE_DIR = Path("models/schedule")
 SCHEDULE_PATH = Path("models/schedule.json")
-MIN_SAMPLES = 500   # minimum de samples pour qu'un slot soit entraînable
-MIN_MOVE_PCT = 0.001  # seuil de filtrage target engineering
+MIN_SAMPLES = 300   # abaissé pour les petits slots
+MIN_MOVE_PCT = 0.003  # filtrage renforcé : mouvements > 0.3%
 
 # --- Définition des slots horaires ---
 # dow: 0=Lundi, 1=Mardi, 2=Mercredi, 3=Jeudi, 4=Vendredi, 5=Samedi, 6=Dimanche

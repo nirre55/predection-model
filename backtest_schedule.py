@@ -37,14 +37,15 @@ import pandas as pd
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-from src.data.cache import load_klines
+from src.data.cache import load_klines, save_klines
+from src.data.fetcher import fetch_klines as fetch_klines_api
 from src.features.builder import build_dataset_with_target_times
 from src.model.serializer import load_model
 
 SYMBOL          = "BTCUSDT"
 INTERVAL        = "5m"
 SCHEDULE_PATH   = Path("models/schedule.json")
-BEST_INDICATORS = ["rsi", "macd", "atr"]
+BEST_INDICATORS = ["rsi", "macd", "atr", "mfi", "vdelta", "body", "streak"]
 FEE_RT          = 0.002   # 0.1% entree + 0.1% sortie = 0.2% round-trip
 TEST_RATIO      = 0.20    # dernier 20% des donnees = hors-echantillon
 CANDLES_PER_YEAR = 365 * 24 * 12   # bougies 5m par an ≈ 105 120
@@ -113,7 +114,26 @@ class ModelCache:
 # Construction des features par window
 # ---------------------------------------------------------------------------
 
-def build_matrices(df: pd.DataFrame) -> dict[int, tuple]:
+def _load_mtf_data(symbol: str) -> tuple:
+    """Charge les données 1h et 4h pour le contexte multi-timeframe."""
+    try:
+        df_1h = load_klines(symbol, "1h")
+    except FileNotFoundError:
+        print("  Fetch donnees 1h...")
+        df_1h = fetch_klines_api(symbol, "1h", start_str="5 years ago UTC")
+        save_klines(df_1h, symbol, "1h")
+
+    try:
+        df_4h = load_klines(symbol, "4h")
+    except FileNotFoundError:
+        print("  Fetch donnees 4h...")
+        df_4h = fetch_klines_api(symbol, "4h", start_str="5 years ago UTC")
+        save_klines(df_4h, symbol, "4h")
+
+    return df_1h, df_4h
+
+
+def build_matrices(df: pd.DataFrame, df_1h=None, df_4h=None) -> dict[int, tuple]:
     """Pre-calcule X, y, target_times pour chaque window utilise dans le schedule."""
     schedule = load_schedule()
     windows = set(s["window"] for s in schedule if not s.get("default"))
@@ -121,7 +141,8 @@ def build_matrices(df: pd.DataFrame) -> dict[int, tuple]:
     for w in sorted(windows):
         print(f"  Construction features window={w}...", end=" ", flush=True)
         X, y, times = build_dataset_with_target_times(
-            df, window=w, indicators=BEST_INDICATORS, include_time=True
+            df, window=w, indicators=BEST_INDICATORS, include_time=True,
+            df_1h=df_1h, df_4h=df_4h,
         )
         matrices[w] = (X, y, times)
         print(f"{len(X)} samples")
@@ -369,8 +390,11 @@ def main():
     schedule = load_schedule()
     model_cache = ModelCache()
 
+    print("\nChargement donnees multi-timeframe...")
+    df_1h, df_4h = _load_mtf_data(SYMBOL)
+
     print("\nConstruction des matrices de features...")
-    matrices = build_matrices(df)
+    matrices = build_matrices(df, df_1h=df_1h, df_4h=df_4h)
 
     # Date de coupure test set = 80e percentile chronologique
     ref_times = matrices[min(matrices.keys())][2]

@@ -13,7 +13,7 @@ def compute_rsi(close: np.ndarray, period: int = 14) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         rs = np.where(avg_loss > 0, avg_gain / avg_loss, 100.0)
     rsi = 100.0 - 100.0 / (1.0 + rs)
-    rsi[0] = 50.0  # premier diff = NaN → valeur neutre
+    rsi[0] = 50.0
     return np.clip(rsi, 0.0, 100.0) / 100.0
 
 
@@ -67,3 +67,116 @@ def compute_volume_ratio(volume: np.ndarray, period: int = 20) -> np.ndarray:
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio = np.where(ma > 0, volume / ma, 1.0)
     return np.clip(ratio, 0.0, 10.0)
+
+
+# ---------------------------------------------------------------------------
+# Nouveaux indicateurs
+# ---------------------------------------------------------------------------
+
+def compute_mfi(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, volume: np.ndarray, period: int = 14
+) -> np.ndarray:
+    """Money Flow Index [0, 1] — RSI pondéré par le volume."""
+    typical_price = (high + low + close) / 3.0
+    money_flow = typical_price * volume
+
+    prev_tp = np.roll(typical_price, 1)
+    prev_tp[0] = typical_price[0]
+
+    pos_flow = np.where(typical_price > prev_tp, money_flow, 0.0)
+    neg_flow = np.where(typical_price < prev_tp, money_flow, 0.0)
+
+    pos_mf = np.asarray(pd.Series(pos_flow).rolling(period, min_periods=1).sum().values, dtype="float64")
+    neg_mf = np.asarray(pd.Series(neg_flow).rolling(period, min_periods=1).sum().values, dtype="float64")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mfr = np.where(neg_mf > 0, pos_mf / neg_mf, 100.0)
+
+    mfi = 100.0 - 100.0 / (1.0 + mfr)
+    mfi[0] = 50.0
+    return np.clip(mfi, 0.0, 100.0) / 100.0
+
+
+def compute_volume_delta(
+    open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray, volume: np.ndarray
+) -> np.ndarray:
+    """Volume delta directionnel normalisé [-1, 1].
+
+    Mesure la pression acheteuse/vendeuse : volume × direction pondérée par le corps.
+    """
+    candle_range = high - low
+    with np.errstate(divide="ignore", invalid="ignore"):
+        body_pct = np.where(candle_range > 0, (close - open_) / candle_range, 0.0)
+
+    delta = volume * np.clip(body_pct, -1.0, 1.0)
+
+    vol_sma = np.asarray(pd.Series(volume).rolling(20, min_periods=1).mean().values, dtype="float64")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        normalized = np.where(vol_sma > 0, delta / vol_sma, 0.0)
+
+    return np.clip(normalized, -10.0, 10.0)
+
+
+def compute_cci(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 20
+) -> np.ndarray:
+    """CCI normalisé à [-1, 1] — déviation du prix par rapport à sa moyenne."""
+    typical_price = (high + low + close) / 3.0
+    s = pd.Series(typical_price)
+    tp_ma = np.asarray(s.rolling(period, min_periods=1).mean().values, dtype="float64")
+    tp_std = np.asarray(s.rolling(period, min_periods=1).std(ddof=0).fillna(0.0).values, dtype="float64")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        cci = np.where(tp_std > 0, (typical_price - tp_ma) / (0.015 * tp_std), 0.0)
+
+    return np.clip(cci / 200.0, -1.0, 1.0)
+
+
+def compute_body_ratio(
+    open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray
+) -> np.ndarray:
+    """Ratio corps / range total [0, 1]. 1.0 = corps pur, 0.0 = doji total."""
+    total_range = high - low
+    body = np.abs(close - open_)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(total_range > 0, body / total_range, 0.5)
+    return np.clip(ratio, 0.0, 1.0)
+
+
+def compute_upper_wick(
+    open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray
+) -> np.ndarray:
+    """Ratio mèche haute / range [0, 1] — pression vendeuse (rejet des hauts)."""
+    total_range = high - low
+    upper_wick = high - np.maximum(open_, close)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(total_range > 0, upper_wick / total_range, 0.0)
+    return np.clip(ratio, 0.0, 1.0)
+
+
+def compute_lower_wick(
+    open_: np.ndarray, high: np.ndarray, low: np.ndarray, close: np.ndarray
+) -> np.ndarray:
+    """Ratio mèche basse / range [0, 1] — pression acheteuse (rejet des bas)."""
+    total_range = high - low
+    lower_wick = np.minimum(open_, close) - low
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(total_range > 0, lower_wick / total_range, 0.0)
+    return np.clip(ratio, 0.0, 1.0)
+
+
+def compute_streak(close: np.ndarray, open_: np.ndarray) -> np.ndarray:
+    """Nombre de bougies consécutives dans la même direction, normalisé [-1, 1].
+
+    Positif = streak haussier, négatif = streak baissier.
+    """
+    direction = (close > open_).astype("int64")
+    sign = np.where(direction, 1, -1)
+
+    changes = np.concatenate([[True], direction[1:] != direction[:-1]])
+    group_starts = np.where(changes)[0]  # positions de début de chaque groupe
+    group_id = np.cumsum(changes) - 1    # index 0-based du groupe
+
+    within_pos = np.arange(len(direction)) - group_starts[group_id]
+    streak = sign * (within_pos + 1).astype("float64")
+    return np.clip(streak / 10.0, -1.0, 1.0)

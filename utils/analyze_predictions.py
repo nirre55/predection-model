@@ -65,6 +65,12 @@ DEFAULT_CONFIG = {
             "pause_after_losses": 7,
             "pause_trades": 3,
         },
+        "MM11_alternating": {
+            "enabled": True,
+            "base_fraction_pct": 1.0,
+            "odd_loss_fraction_pct": 2.5,
+            "even_loss_fraction_pct": 1.0,
+        },
     },
 }
 
@@ -414,6 +420,31 @@ def simulate_combined(results: list[str], starting_capital: float, cfg: dict, wi
     return result
 
 
+def simulate_mm11_alternating(results: list[str], starting_capital: float, cfg: dict, win_profit: float, loss_profit: float) -> StrategyResult:
+    base_fraction = cfg["base_fraction_pct"] / 100.0
+    odd_fraction = cfg["odd_loss_fraction_pct"] / 100.0
+    even_fraction = cfg["even_loss_fraction_pct"] / 100.0
+
+    def stake_getter(capital: float, _win_streak: int, loss_streak: int) -> tuple[float, int]:
+        if loss_streak <= 0:
+            fraction = base_fraction
+        elif loss_streak % 2 == 1:
+            fraction = odd_fraction
+        else:
+            fraction = even_fraction
+        return capital * fraction, 0
+
+    result = simulate_variable_stake(
+        results,
+        starting_capital,
+        stake_getter,
+        win_profit,
+        loss_profit,
+    )
+    result.name = "MM11_alternating"
+    return result
+
+
 def build_money_management_report(results: list[str], starting_capital: float, config: dict) -> dict:
     general = config["general"]
     strategies_cfg = config["strategies"]
@@ -430,6 +461,7 @@ def build_money_management_report(results: list[str], starting_capital: float, c
         ("reduction_after_losses", simulate_reduction_after_losses),
         ("pause_after_losses", simulate_pause_after_losses),
         ("combined", simulate_combined),
+        ("MM11_alternating", simulate_mm11_alternating),
     ]
 
     strategies: list[StrategyResult] = []

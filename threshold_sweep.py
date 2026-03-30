@@ -22,7 +22,7 @@ from src.model.trainer import train
 SYMBOL = "BTCUSDT"
 THRESHOLDS = [0.0, 0.0005, 0.001, 0.0015, 0.002]
 RESULTS_PATH = Path("models/threshold_sweep_results.json")
-BEST_INDICATORS = ["rsi", "macd", "atr"]
+BEST_INDICATORS = ["rsi", "macd", "atr", "mfi", "vdelta", "body", "streak"]
 WINDOW = 50
 INCLUDE_TIME = True
 

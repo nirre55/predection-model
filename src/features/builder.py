@@ -11,10 +11,17 @@ from src.features.indicators import (
     compute_bollinger_pct,
     compute_atr_normalized,
     compute_volume_ratio,
+    compute_mfi,
+    compute_volume_delta,
+    compute_cci,
+    compute_body_ratio,
+    compute_upper_wick,
+    compute_lower_wick,
+    compute_streak,
 )
 from src.features import time_features as tf
 
-# Registre des indicateurs disponibles (même interface qu'ablation.py)
+# Registre des indicateurs disponibles
 INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
     "rsi": lambda df: compute_rsi(np.asarray(df["close"].values, dtype="float64")),
     "macd": lambda df: compute_macd_histogram(np.asarray(df["close"].values, dtype="float64")),
@@ -25,9 +32,50 @@ INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
         np.asarray(df["close"].values, dtype="float64"),
     ),
     "vol": lambda df: compute_volume_ratio(np.asarray(df["volume"].values, dtype="float64")),
+    # Nouveaux indicateurs
+    "mfi": lambda df: compute_mfi(
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+        np.asarray(df["volume"].values, dtype="float64"),
+    ),
+    "vdelta": lambda df: compute_volume_delta(
+        np.asarray(df["open"].values, dtype="float64"),
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+        np.asarray(df["volume"].values, dtype="float64"),
+    ),
+    "cci": lambda df: compute_cci(
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
+    "body": lambda df: compute_body_ratio(
+        np.asarray(df["open"].values, dtype="float64"),
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
+    "uwik": lambda df: compute_upper_wick(
+        np.asarray(df["open"].values, dtype="float64"),
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
+    "lwik": lambda df: compute_lower_wick(
+        np.asarray(df["open"].values, dtype="float64"),
+        np.asarray(df["high"].values, dtype="float64"),
+        np.asarray(df["low"].values, dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
+    "streak": lambda df: compute_streak(
+        np.asarray(df["close"].values, dtype="float64"),
+        np.asarray(df["open"].values, dtype="float64"),
+    ),
 }
 
-ALL_INDICATORS = ["rsi", "macd", "bb", "atr", "vol"]
+ALL_INDICATORS = ["rsi", "macd", "bb", "atr", "vol", "mfi", "vdelta", "cci", "body", "uwik", "lwik", "streak"]
 
 
 def build_multitf_context(
@@ -46,14 +94,10 @@ def build_multitf_context(
     Returns:
         ctx: (n_samples, 5) — [trend_1h, trend_4h, momentum_1h, volatility_regime_1h, rsi_1h]
     """
-    # Convertir les timestamps en int64 ns
     times_1h_ns = np.asarray(df_1h["open_time"].values, dtype="int64")
     times_4h_ns = np.asarray(df_4h["open_time"].values, dtype="int64")
-
-    # Convertir target_times en int64 ns
     target_times_ns = np.asarray(target_times).astype("int64")
 
-    # Pré-calculer les features 1h
     close_1h = np.asarray(df_1h["close"].values, dtype="float64")
     high_1h = np.asarray(df_1h["high"].values, dtype="float64")
     low_1h = np.asarray(df_1h["low"].values, dtype="float64")
@@ -63,24 +107,19 @@ def build_multitf_context(
     rsi_1h_arr = compute_rsi(close_1h)
     atr_1h_arr = compute_atr_normalized(high_1h, low_1h, close_1h)
 
-    # Pré-calculer les features 4h
     close_4h = np.asarray(df_4h["close"].values, dtype="float64")
     sma20_4h = pd.Series(close_4h).rolling(20, min_periods=1).mean().values
     trend_4h_arr = (close_4h > sma20_4h).astype("float64")
 
-    # Alignement sans look-ahead via searchsorted
     idx_1h = np.searchsorted(times_1h_ns, target_times_ns, side="right") - 1
     idx_4h = np.searchsorted(times_4h_ns, target_times_ns, side="right") - 1
 
-    # Clamp des indices
     idx_1h = np.clip(idx_1h, 0, len(df_1h) - 1)
     idx_4h = np.clip(idx_4h, 0, len(df_4h) - 1)
 
-    # Extraire les 5 features vectorisées
     f_trend_1h = trend_1h_arr[idx_1h]
     f_trend_4h = trend_4h_arr[idx_4h]
 
-    # Momentum : (close[idx] - close[max(0, idx-3)]) / close[max(0, idx-3)]
     idx_1h_lag = np.maximum(0, idx_1h - 3)
     f_momentum_1h = np.clip(
         (close_1h[idx_1h] - close_1h[idx_1h_lag]) / close_1h[idx_1h_lag],
@@ -108,11 +147,11 @@ def build_dataset(
     Args:
         df:           DataFrame OHLCV avec colonne open_time.
         window:       Taille de la fenêtre (nombre de bougies).
-        indicators:   Liste d'indicateurs à inclure (None = tous les 5).
+        indicators:   Liste d'indicateurs à inclure (None = tous).
         include_time: Si True, ajoute 5 features temporelles (heure/jour).
         df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
         df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
-        min_move_pct: Seuil minimum de mouvement de prix — bougies en-dessous masquées (0.0 = désactivé).
+        min_move_pct: Seuil minimum de mouvement de prix — bougies en-dessous masquées.
 
     Returns:
         X: (n_samples, n_features)
@@ -124,14 +163,12 @@ def build_dataset(
     close = np.asarray(df["close"].values, dtype="float64")
     open_ = np.asarray(df["open"].values, dtype="float64")
 
-    # Indicateurs sur la série complète (causaux)
     ind_arrays = [INDICATOR_REGISTRY[name](df) for name in active]
 
     n_samples = len(df) - window - 2
     j_arr = np.arange(n_samples)
-    window_rows = (j_arr + 1)[:, None] + np.arange(window)  # (n_samples, window)
+    window_rows = (j_arr + 1)[:, None] + np.arange(window)
 
-    # OHLCV normalisé par ref_close
     ref_closes = close[j_arr]
     ohlcv_windows = ohlcv[window_rows]
     ohlcv_norm = (ohlcv_windows / ref_closes[:, None, None]).reshape(n_samples, window * 5)
@@ -140,11 +177,10 @@ def build_dataset(
     for arr in ind_arrays:
         parts.append(arr[window_rows])
 
-    # Features temporelles (scalaires par sample — heure de la bougie cible)
     if include_time and "open_time" in df.columns:
         target_idx = j_arr + window + 2
         target_times = df["open_time"].iloc[target_idx].reset_index(drop=True)
-        time_feats = tf.from_timestamps(target_times)  # (n_samples, 5)
+        time_feats = tf.from_timestamps(target_times)
         parts.append(time_feats)
 
     X = np.concatenate(parts, axis=1)
@@ -152,13 +188,11 @@ def build_dataset(
     target_idx = j_arr + window + 2
     y = (close[target_idx] > open_[target_idx]).astype("int64")
 
-    # Multi-timeframe context
     if df_1h is not None and df_4h is not None:
         target_times_mtf = np.asarray(df["open_time"].iloc[target_idx].reset_index(drop=True).values)
         ctx = build_multitf_context(df_1h, df_4h, target_times_mtf)
         X = np.concatenate([X, ctx], axis=1)
 
-    # Target filtering
     if min_move_pct > 0.0:
         price_move_pct = np.abs(close[target_idx] - open_[target_idx]) / open_[target_idx]
         valid_mask = price_move_pct >= min_move_pct
@@ -178,19 +212,6 @@ def build_dataset_with_target_times(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Comme build_dataset mais retourne aussi les timestamps des bougies cibles.
-    Utilisé par ablation_schedule.py pour filtrer par slot horaire.
-
-    Args:
-        df:           DataFrame OHLCV avec colonne open_time.
-        window:       Taille de la fenêtre (nombre de bougies).
-        indicators:   Liste d'indicateurs à inclure (None = tous les 5).
-        include_time: Si True, ajoute 5 features temporelles (heure/jour).
-        df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
-        df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
-        min_move_pct: Seuil minimum de mouvement de prix (0.0 = désactivé).
-
-    Returns:
-        X, y, target_open_times (np.ndarray de datetime64)
     """
     active = indicators if indicators is not None else ALL_INDICATORS
 
@@ -223,12 +244,10 @@ def build_dataset_with_target_times(
     y = (close[target_idx] > open_[target_idx]).astype("int64")
     target_open_times = np.asarray(target_times_series.values)
 
-    # Multi-timeframe context
     if df_1h is not None and df_4h is not None:
         ctx = build_multitf_context(df_1h, df_4h, np.asarray(target_times_series.values))
         X = np.concatenate([X, ctx], axis=1)
 
-    # Target filtering — appliqué sur X, y ET target_open_times
     if min_move_pct > 0.0:
         price_move_pct = np.abs(close[target_idx] - open_[target_idx]) / open_[target_idx]
         valid_mask = price_move_pct >= min_move_pct
@@ -247,33 +266,32 @@ def build_inference_features(
 ) -> np.ndarray:
     """
     Construit les features pour une prédiction en temps réel.
-
-    Args:
-        candles:      Deque de window+1 bougies (dict avec open/high/low/close/volume).
-        window:       Taille de la fenêtre.
-        indicators:   Liste d'indicateurs (None = tous les 5, pour compat. ascendante).
-        predict_time: Datetime UTC de la bougie à prédire — pour les features temporelles.
-        df_1h:        DataFrame 1h pour les features multi-timeframe (optionnel).
-        df_4h:        DataFrame 4h pour les features multi-timeframe (optionnel).
     """
     active = indicators if indicators is not None else ALL_INDICATORS
 
-    candles_list = list(candles)  # window+1 éléments
+    candles_list = list(candles)
     ref_close = candles_list[0]["close"]
-    feature_candles = candles_list[1:]  # window éléments
+    feature_candles = candles_list[1:]
 
     close_arr = np.array([c["close"] for c in candles_list])
     high_arr = np.array([c["high"] for c in candles_list])
     low_arr = np.array([c["low"] for c in candles_list])
+    open_arr = np.array([c["open"] for c in candles_list])
     volume_arr = np.array([c["volume"] for c in candles_list])
 
-    # Calcul des indicateurs demandés uniquement
     ind_map = {
-        "rsi": lambda: compute_rsi(close_arr)[-window:],
-        "macd": lambda: compute_macd_histogram(close_arr)[-window:],
-        "bb": lambda: compute_bollinger_pct(close_arr)[-window:],
-        "atr": lambda: compute_atr_normalized(high_arr, low_arr, close_arr)[-window:],
-        "vol": lambda: compute_volume_ratio(volume_arr)[-window:],
+        "rsi":    lambda: compute_rsi(close_arr)[-window:],
+        "macd":   lambda: compute_macd_histogram(close_arr)[-window:],
+        "bb":     lambda: compute_bollinger_pct(close_arr)[-window:],
+        "atr":    lambda: compute_atr_normalized(high_arr, low_arr, close_arr)[-window:],
+        "vol":    lambda: compute_volume_ratio(volume_arr)[-window:],
+        "mfi":    lambda: compute_mfi(high_arr, low_arr, close_arr, volume_arr)[-window:],
+        "vdelta": lambda: compute_volume_delta(open_arr, high_arr, low_arr, close_arr, volume_arr)[-window:],
+        "cci":    lambda: compute_cci(high_arr, low_arr, close_arr)[-window:],
+        "body":   lambda: compute_body_ratio(open_arr, high_arr, low_arr, close_arr)[-window:],
+        "uwik":   lambda: compute_upper_wick(open_arr, high_arr, low_arr, close_arr)[-window:],
+        "lwik":   lambda: compute_lower_wick(open_arr, high_arr, low_arr, close_arr)[-window:],
+        "streak": lambda: compute_streak(close_arr, open_arr)[-window:],
     }
 
     ohlcv_window = np.array(
@@ -291,13 +309,11 @@ def build_inference_features(
 
     X = np.concatenate(parts)
 
-    # Multi-timeframe context
     if df_1h is not None and df_4h is not None and predict_time is not None:
-        target_ts = np.array([pd.Timestamp(predict_time).value])  # int64 ns
-        ctx = build_multitf_context(df_1h, df_4h, target_ts)  # shape (1, 5)
+        target_ts = np.array([pd.Timestamp(predict_time).value])
+        ctx = build_multitf_context(df_1h, df_4h, target_ts)
         X = np.concatenate([X, ctx.flatten()])
     elif df_1h is not None or df_4h is not None:
-        # Valeurs neutres si seulement un des deux DataFrames est fourni
         X = np.concatenate([X, np.array([0.5, 0.5, 0.0, 0.0, 0.5])])
 
     return X.reshape(1, -1)

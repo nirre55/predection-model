@@ -12,7 +12,7 @@ strategies:
 
   fixed_fraction:
     enabled: true
-    fraction_pct: 5.0
+    fraction_pct: 1.0
 
   martingale_classic:
     enabled: true
@@ -38,7 +38,7 @@ strategies:
 
   reduction_after_losses:
     enabled: true
-    base_fraction_pct: 1.0
+    base_fraction_pct: 5.0
     loss_steps:
       - min_loss_streak: 1
         fraction_pct: 2.5
@@ -66,3 +66,9 @@ strategies:
         multiplier: 0.2
     pause_after_losses: 7
     pause_trades: 3
+
+  MM11_alternating:
+    enabled: true
+    base_fraction_pct: 1.0
+    odd_loss_fraction_pct: 2.5
+    even_loss_fraction_pct: 1.0
