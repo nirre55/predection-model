@@ -111,8 +111,13 @@ def build_multitf_context(
     sma20_4h = pd.Series(close_4h).rolling(20, min_periods=1).mean().values
     trend_4h_arr = (close_4h > sma20_4h).astype("float64")
 
-    idx_1h = np.searchsorted(times_1h_ns, target_times_ns, side="right") - 1
-    idx_4h = np.searchsorted(times_4h_ns, target_times_ns, side="right") - 1
+    # Utiliser uniquement les bougies 1h/4h FERMEES au moment de la prediction.
+    # Une bougie 1h ouverte a t ferme a t+1h, donc on soustrait 1h/4h pour
+    # garantir que la bougie selectionnee est entierement close.
+    ONE_HOUR_NS  = np.int64(3_600_000_000_000)
+    FOUR_HOUR_NS = np.int64(14_400_000_000_000)
+    idx_1h = np.searchsorted(times_1h_ns, target_times_ns - ONE_HOUR_NS,  side="right") - 1
+    idx_4h = np.searchsorted(times_4h_ns, target_times_ns - FOUR_HOUR_NS, side="right") - 1
 
     idx_1h = np.clip(idx_1h, 0, len(df_1h) - 1)
     idx_4h = np.clip(idx_4h, 0, len(df_4h) - 1)
@@ -165,7 +170,7 @@ def build_dataset(
 
     ind_arrays = [INDICATOR_REGISTRY[name](df) for name in active]
 
-    n_samples = len(df) - window - 2
+    n_samples = len(df) - window - 1
     j_arr = np.arange(n_samples)
     window_rows = (j_arr + 1)[:, None] + np.arange(window)
 
@@ -177,15 +182,16 @@ def build_dataset(
     for arr in ind_arrays:
         parts.append(arr[window_rows])
 
+    # target = bougie qui ouvre immediatement apres la derniere feature (j+window+1)
+    target_idx = j_arr + window + 1
+
     if include_time and "open_time" in df.columns:
-        target_idx = j_arr + window + 2
         target_times = df["open_time"].iloc[target_idx].reset_index(drop=True)
         time_feats = tf.from_timestamps(target_times)
         parts.append(time_feats)
 
     X = np.concatenate(parts, axis=1)
 
-    target_idx = j_arr + window + 2
     y = (close[target_idx] > open_[target_idx]).astype("int64")
 
     if df_1h is not None and df_4h is not None:
@@ -221,7 +227,7 @@ def build_dataset_with_target_times(
 
     ind_arrays = [INDICATOR_REGISTRY[name](df) for name in active]
 
-    n_samples = len(df) - window - 2
+    n_samples = len(df) - window - 1
     j_arr = np.arange(n_samples)
     window_rows = (j_arr + 1)[:, None] + np.arange(window)
 
@@ -233,7 +239,8 @@ def build_dataset_with_target_times(
     for arr in ind_arrays:
         parts.append(arr[window_rows])
 
-    target_idx = j_arr + window + 2
+    # target = bougie qui ouvre immediatement apres la derniere feature (j+window+1)
+    target_idx = j_arr + window + 1
     target_times_series = df["open_time"].iloc[target_idx].reset_index(drop=True)
 
     if include_time:
