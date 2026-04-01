@@ -12,7 +12,6 @@ from src.model import scheduler as sched
 from src.features import builder
 from src.data.fetcher import fetch_klines
 
-PREDICTIONS_CSV = Path("models/predictions.csv")
 _CSV_FIELDS = [
     "predicted_at", "candle_open", "candle_close", "slot",
     "predicted_direction", "probability_pct",
@@ -22,10 +21,11 @@ _CSV_FIELDS = [
 
 
 def _append_csv(pred: "Prediction", confidence: float,
-                actual_direction: str, result: str) -> None:
-    is_new = not PREDICTIONS_CSV.exists()
+                actual_direction: str, result: str,
+                csv_path: Path = Path("models/predictions.csv")) -> None:
+    is_new = not csv_path.exists()
     other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
-    with PREDICTIONS_CSV.open("a", newline="", encoding="utf-8") as f:
+    with csv_path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=_CSV_FIELDS)
         if is_new:
             writer.writeheader()
@@ -68,16 +68,21 @@ class LivePredictor:
         interval: str,
         window: int,
         model_path: str = "models/model_calibrated.pkl",
+        schedule_path: str = "models/schedule.json",
+        predictions_csv: str = "models/predictions.csv",
     ):
         self.symbol = symbol
         self.interval = interval
         self.window = window
+        self._predictions_csv = Path(predictions_csv)
+        self._predictions_csv.parent.mkdir(parents=True, exist_ok=True)
 
-        if sched.has_schedule():
-            self._scheduler = sched.ModelScheduler()
+        schedule_file = Path(schedule_path)
+        if schedule_file.exists():
+            self._scheduler = sched.ModelScheduler(schedule_path=schedule_file)
             self._single_model = None
             self._single_meta: dict = {}
-            print("[Scheduler] models/schedule.json detecte — routing temporel active.")
+            print(f"[Scheduler] {schedule_path} detecte — routing temporel active.")
         else:
             self._scheduler = None
             self._single_model, self._single_meta = serializer.load_model(model_path)
@@ -105,7 +110,7 @@ class LivePredictor:
         self._last_context_refresh = _time.time()
 
     def _init_buffer(self, window: int):
-        df = fetch_klines(self.symbol, self.interval, limit=window + 2)
+        df = fetch_klines(self.symbol, self.interval, limit=500)
         closed_candles = df.iloc[:-1]
         buf: collections.deque = collections.deque(maxlen=window + 1)
         for _, row in closed_candles.tail(window + 1).iterrows():
@@ -138,8 +143,9 @@ class LivePredictor:
             direction, probability = "ROUGE", prob_red
 
         now = datetime.now(timezone.utc)
-        candle_open = _current_candle_open(now)
-        candle_close = candle_open + timedelta(minutes=5)
+        _interval_min = int(self.interval.rstrip("m")) if self.interval.endswith("m") else 60
+        candle_open = _current_candle_open(now, _interval_min)
+        candle_close = candle_open + timedelta(minutes=_interval_min)
 
         slot = meta.get("slot", "default")
         return Prediction(
@@ -152,6 +158,9 @@ class LivePredictor:
         )
 
     def start(self):
+        # Déduire l'intervalle en minutes depuis self.interval (ex: "5m" -> 5, "15m" -> 15)
+        _interval_minutes = int(self.interval.rstrip("m").rstrip("h")) if self.interval.endswith("m") else 60
+
         now = datetime.now(timezone.utc)
         model, meta = self._get_model_and_meta(now)
         active_window = self._active_window(meta)
@@ -160,7 +169,7 @@ class LivePredictor:
         print(f"Buffer initialise avec {len(self.buffer)} bougies (window={active_window}). En attente...")
 
         # Refresh initial du contexte multi-timeframe si activé
-        if sched.has_schedule() or meta.get("multitf_enabled", False):
+        if self._scheduler is not None or meta.get("multitf_enabled", False):
             if meta.get("multitf_enabled", False):
                 self._refresh_context()
 
@@ -172,7 +181,7 @@ class LivePredictor:
         try:
             while True:
                 now = datetime.now(timezone.utc)
-                next_trigger = _next_trigger_time(now)
+                next_trigger = _next_trigger_time(now, _interval_minutes)
                 delay = (next_trigger - now).total_seconds()
                 if delay > 0:
                     time.sleep(delay)
@@ -198,7 +207,7 @@ class LivePredictor:
                     actual_green = float(last_closed["close"]) > float(last_closed["open"])
                     actual_dir = "VERT" if actual_green else "ROUGE"
                     result = "WIN" if actual_dir == pending.pred.direction else "LOSS"
-                    _append_csv(pending.pred, pending.confidence, actual_dir, result)
+                    _append_csv(pending.pred, pending.confidence, actual_dir, result, self._predictions_csv)
                     result_str = "WIN" if result == "WIN" else "LOSS"
                     print(f"  --> Bougie fermee : {actual_dir} | {result_str}")
 
@@ -213,7 +222,7 @@ class LivePredictor:
                 })
 
                 # --- Nouvelle prédiction ---
-                pred_time = _current_candle_open(now)
+                pred_time = _current_candle_open(now, _interval_minutes)
                 pred = self.predict(self.buffer, model, meta, predict_time=pred_time)
 
                 other_direction = "ROUGE" if pred.direction == "VERT" else "VERT"
@@ -242,21 +251,21 @@ class LivePredictor:
         except KeyboardInterrupt:
             # Écrire la dernière prédiction comme PENDING si le programme est arrêté
             if pending is not None:
-                _append_csv(pending.pred, pending.confidence, "PENDING", "PENDING")
+                _append_csv(pending.pred, pending.confidence, "PENDING", "PENDING", self._predictions_csv)
                 print("\n[CSV] Derniere prediction sauvegardee comme PENDING.")
 
 
-def _current_candle_open(now: datetime) -> datetime:
-    """Retourne l'ouverture de la bougie M5 en cours (plancher à la minute multiple de 5)."""
-    current_5 = (now.minute // 5) * 5
-    return now.replace(minute=current_5, second=0, microsecond=0)
+def _current_candle_open(now: datetime, interval_minutes: int = 5) -> datetime:
+    """Retourne l'ouverture de la bougie en cours pour un intervalle donné (en minutes)."""
+    current_m = (now.minute // interval_minutes) * interval_minutes
+    return now.replace(minute=current_m, second=0, microsecond=0)
 
 
-def _next_trigger_time(now: datetime) -> datetime:
-    """Prochain déclenchement : prochaine minute multiple de 5 + 2s de buffer."""
-    next_5 = ((now.minute // 5) + 1) * 5
-    if next_5 >= 60:
+def _next_trigger_time(now: datetime, interval_minutes: int = 5) -> datetime:
+    """Prochain déclenchement : prochaine bougie + 2s de buffer."""
+    next_m = ((now.minute // interval_minutes) + 1) * interval_minutes
+    if next_m >= 60:
         next_open = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
     else:
-        next_open = now.replace(minute=next_5, second=0, microsecond=0)
+        next_open = now.replace(minute=next_m, second=0, microsecond=0)
     return next_open + timedelta(seconds=2)

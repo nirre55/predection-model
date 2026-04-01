@@ -123,10 +123,36 @@ def live(
     window: int = typer.Option(50),
     model_path: str = typer.Option("models/model_calibrated.pkl", help="Chemin vers le modèle"),
 ):
-    """Lance la prédiction live toutes les 5 minutes."""
+    """Lance la prédiction live toutes les 5 minutes (M5)."""
     from src.live.predictor import LivePredictor
 
-    predictor = LivePredictor(symbol=symbol, interval=interval, window=window, model_path=model_path)
+    predictor = LivePredictor(
+        symbol=symbol,
+        interval=interval,
+        window=window,
+        model_path=model_path,
+        schedule_path="models/schedule.json",
+        predictions_csv="models/predictions.csv",
+    )
+    predictor.start()
+
+
+@app.command(name="live-m15")
+def live_m15(
+    symbol: str = typer.Option("BTCUSDT"),
+    window: int = typer.Option(50),
+):
+    """Lance la prédiction live toutes les 15 minutes (M15)."""
+    from src.live.predictor import LivePredictor
+
+    predictor = LivePredictor(
+        symbol=symbol,
+        interval="15m",
+        window=window,
+        model_path="models/m15/model_calibrated.pkl",
+        schedule_path="models/m15/schedule.json",
+        predictions_csv="models/m15/predictions.csv",
+    )
     predictor.start()
 
 
