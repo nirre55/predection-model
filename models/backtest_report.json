@@ -1,104 +1,72 @@
 {
-  "generated_at": "2026-03-20T16:12:10.912815+00:00",
-  "test_period_start": "2025-03-19",
+  "generated_at": "2026-03-30T19:24:46.145828+00:00",
+  "test_period_start": "2025-11-04",
   "confidence_threshold": 0.0,
   "position_usd": 1000.0,
   "fee_rt_pct": 0.2,
   "global": {
-    "n_trades": 105138,
-    "n_wins": 52803,
-    "n_losses": 52335,
-    "win_rate_pct": 50.22,
-    "total_pnl_usd": -209571.1,
-    "gross_profit": -59345.03,
-    "gross_loss": 150226.07,
-    "profit_factor": -0.395,
-    "max_drawdown_usd": -209567.57,
-    "sharpe_ratio": -468.0257,
-    "avg_pnl_usd": -1.9933,
-    "best_trade_usd": 37.4302,
-    "worst_trade_usd": -75.3816
+    "n_trades": 42043,
+    "n_wins": 23297,
+    "n_losses": 18746,
+    "win_rate_pct": 55.41,
+    "total_pnl_usd": -74991.91,
+    "gross_profit": -20154.29,
+    "gross_loss": 54837.62,
+    "profit_factor": -0.3675,
+    "max_drawdown_usd": -74987.92,
+    "sharpe_ratio": -359.5065,
+    "avg_pnl_usd": -1.7837,
+    "best_trade_usd": 19.0485,
+    "worst_trade_usd": -40.5319
   },
   "by_slot": [
     {
-      "slot": "sunday_20_24",
-      "n_trades": 2496,
-      "win_rate_pct": 49.56,
-      "total_pnl_usd": -4975.6,
-      "profit_factor": 0.0422,
-      "avg_confidence": 0.81
-    },
-    {
-      "slot": "saturday_0_7",
-      "n_trades": 4368,
-      "win_rate_pct": 51.28,
-      "total_pnl_usd": -8691.54,
-      "profit_factor": 0.0082,
-      "avg_confidence": 3.17
-    },
-    {
-      "slot": "saturday_7_14",
-      "n_trades": 4368,
-      "win_rate_pct": 50.23,
-      "total_pnl_usd": -8707.01,
-      "profit_factor": 0.0116,
-      "avg_confidence": 3.49
-    },
-    {
-      "slot": "sunday_0_9",
-      "n_trades": 5616,
-      "win_rate_pct": 50.91,
-      "total_pnl_usd": -11282.28,
-      "profit_factor": 0.0088,
-      "avg_confidence": 3.3
-    },
-    {
-      "slot": "saturday_14_24",
-      "n_trades": 6240,
-      "win_rate_pct": 50.53,
-      "total_pnl_usd": -12433.87,
-      "profit_factor": 0.0131,
-      "avg_confidence": 0.87
-    },
-    {
       "slot": "sunday_9_20",
-      "n_trades": 6864,
-      "win_rate_pct": 50.2,
-      "total_pnl_usd": -13702.34,
-      "profit_factor": 0.0172,
-      "avg_confidence": 1.74
+      "n_trades": 2772,
+      "win_rate_pct": 54.0,
+      "total_pnl_usd": -5173.04,
+      "profit_factor": 0.0354,
+      "avg_confidence": 26.23
     },
     {
       "slot": "weekdays_eve",
-      "n_trades": 10032,
-      "win_rate_pct": 49.89,
-      "total_pnl_usd": -19976.45,
-      "profit_factor": 0.028,
-      "avg_confidence": 1.77
+      "n_trades": 3984,
+      "win_rate_pct": 51.68,
+      "total_pnl_usd": -7755.92,
+      "profit_factor": 0.0481,
+      "avg_confidence": 40.08
     },
     {
       "slot": "friday_all",
-      "n_trades": 14976,
-      "win_rate_pct": 49.52,
-      "total_pnl_usd": -30016.61,
-      "profit_factor": 0.0425,
-      "avg_confidence": 0.99
+      "n_trades": 6048,
+      "win_rate_pct": 55.51,
+      "total_pnl_usd": -10577.1,
+      "profit_factor": 0.0931,
+      "avg_confidence": 29.1
     },
     {
       "slot": "weekdays_night",
-      "n_trades": 17556,
-      "win_rate_pct": 50.87,
-      "total_pnl_usd": -34790.55,
-      "profit_factor": 0.0224,
-      "avg_confidence": 1.15
+      "n_trades": 6972,
+      "win_rate_pct": 55.16,
+      "total_pnl_usd": -12447.57,
+      "profit_factor": 0.0541,
+      "avg_confidence": 43.69
+    },
+    {
+      "slot": "default",
+      "n_trades": 9324,
+      "win_rate_pct": 56.19,
+      "total_pnl_usd": -17026.29,
+      "profit_factor": 0.0391,
+      "avg_confidence": 42.19
     },
     {
       "slot": "weekdays_day",
-      "n_trades": 32622,
-      "win_rate_pct": 50.04,
-      "total_pnl_usd": -64994.85,
-      "profit_factor": 0.0414,
-      "avg_confidence": 0.58
+      "n_trades": 12943,
+      "win_rate_pct": 56.39,
+      "total_pnl_usd": -22012.01,
+      "profit_factor": 0.0985,
+      "avg_confidence": 41.28
     }
   ]
 }

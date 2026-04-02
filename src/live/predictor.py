@@ -89,7 +89,7 @@ class LivePredictor:
             print(f"[Scheduler] Modele unique : {model_path}")
 
         self.buffer: collections.deque = collections.deque(maxlen=window + 1)
-        self._context_dfs: dict[str, pd.DataFrame | None] = {"1h": None, "4h": None}
+        self._context_dfs: dict[str, pd.DataFrame | None] = {"1h": None, "4h": None, "1d": None, "fg": None}
         self._last_context_refresh: float = 0.0
 
     def _get_model_and_meta(self, dt: datetime) -> tuple:
@@ -105,8 +105,25 @@ class LivePredictor:
 
     def _refresh_context(self) -> None:
         import pandas as pd
+        from src.data.cache import load_klines
+        from pathlib import Path
+
         self._context_dfs["1h"] = fetch_klines(self.symbol, "1h", limit=50)
         self._context_dfs["4h"] = fetch_klines(self.symbol, "4h", limit=20)
+
+        # D1 context for v3 features
+        try:
+            self._context_dfs["1d"] = load_klines(self.symbol, "1d")
+        except Exception:
+            self._context_dfs["1d"] = None
+
+        # Fear & Greed
+        fg_path = Path("data/raw/fear_greed.parquet")
+        if fg_path.exists():
+            self._context_dfs["fg"] = pd.read_parquet(fg_path)
+        else:
+            self._context_dfs["fg"] = None
+
         self._last_context_refresh = _time.time()
 
     def _init_buffer(self, window: int):
@@ -132,7 +149,14 @@ class LivePredictor:
 
         df_1h = self._context_dfs.get("1h") if meta.get("multitf_enabled", False) else None
         df_4h = self._context_dfs.get("4h") if meta.get("multitf_enabled", False) else None
-        X = builder.build_inference_features(candles, window=win, indicators=indicators, predict_time=pt, df_1h=df_1h, df_4h=df_4h)
+        features_v3 = meta.get("features_v3", False)
+        df_1d = self._context_dfs.get("1d") if features_v3 else None
+        df_fg = self._context_dfs.get("fg") if features_v3 else None
+        X = builder.build_inference_features(
+            candles, window=win, indicators=indicators, predict_time=pt,
+            df_1h=df_1h, df_4h=df_4h,
+            df_1d=df_1d, df_fg=df_fg, include_session=features_v3,
+        )
         proba = model.predict_proba(X)[0]
         prob_green = proba[1]
         prob_red = proba[0]
@@ -168,10 +192,8 @@ class LivePredictor:
         self.buffer = self._init_buffer(active_window)
         print(f"Buffer initialise avec {len(self.buffer)} bougies (window={active_window}). En attente...")
 
-        # Refresh initial du contexte multi-timeframe si activé
-        if self._scheduler is not None or meta.get("multitf_enabled", False):
-            if meta.get("multitf_enabled", False):
-                self._refresh_context()
+        # Refresh initial du contexte (multi-TF + D1 + F&G si v3)
+        self._refresh_context()
 
         if self._scheduler is not None:
             print(self._scheduler.describe(now))
@@ -190,9 +212,9 @@ class LivePredictor:
                 model, meta = self._get_model_and_meta(now)
                 active_window = self._active_window(meta)
 
-                if meta.get("multitf_enabled", False):
-                    if _time.time() - self._last_context_refresh > 3600:
-                        self._refresh_context()
+                # Refresh contexte toutes les heures (MTF + D1 + F&G)
+                if _time.time() - self._last_context_refresh > 3600:
+                    self._refresh_context()
 
                 current_maxlen = self.buffer.maxlen or (active_window + 1)
                 if current_maxlen != active_window + 1:

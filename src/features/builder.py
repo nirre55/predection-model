@@ -18,8 +18,20 @@ from src.features.indicators import (
     compute_upper_wick,
     compute_lower_wick,
     compute_streak,
+    compute_adx,
+    compute_stoch_k,
 )
 from src.features import time_features as tf
+from src.features.futures_features import (
+    build_cvd_features,
+    build_oi_features,
+    build_funding_features,
+)
+from src.features.daily_features import (
+    build_d1_features,
+    build_fg_features,
+    build_session_features,
+)
 
 # Registre des indicateurs disponibles
 INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
@@ -73,9 +85,19 @@ INDICATOR_REGISTRY: dict[str, Callable[..., np.ndarray]] = {
         np.asarray(df["close"].values, dtype="float64"),
         np.asarray(df["open"].values, dtype="float64"),
     ),
+    "adx": lambda df: compute_adx(
+        np.asarray(df["high"].values,  dtype="float64"),
+        np.asarray(df["low"].values,   dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
+    "stoch": lambda df: compute_stoch_k(
+        np.asarray(df["high"].values,  dtype="float64"),
+        np.asarray(df["low"].values,   dtype="float64"),
+        np.asarray(df["close"].values, dtype="float64"),
+    ),
 }
 
-ALL_INDICATORS = ["rsi", "macd", "bb", "atr", "vol", "mfi", "vdelta", "cci", "body", "uwik", "lwik", "streak"]
+ALL_INDICATORS = ["rsi", "macd", "bb", "atr", "vol", "mfi", "vdelta", "cci", "body", "uwik", "lwik", "streak", "adx", "stoch"]
 
 
 def build_multitf_context(
@@ -215,9 +237,21 @@ def build_dataset_with_target_times(
     df_1h: pd.DataFrame | None = None,
     df_4h: pd.DataFrame | None = None,
     min_move_pct: float = 0.0,
+    # Optional futures data — when None, behaviour is identical to before
+    df_taker: pd.DataFrame | None = None,
+    df_oi: pd.DataFrame | None = None,
+    df_funding: pd.DataFrame | None = None,
+    # Optional extra data (v3)
+    df_1d: pd.DataFrame | None = None,
+    df_fg: pd.DataFrame | None = None,
+    include_session: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Comme build_dataset mais retourne aussi les timestamps des bougies cibles.
+
+    Optional futures params (df_taker, df_oi, df_funding):
+      - When provided, appends 5 + 4 + 3 = 12 extra features at the END of X.
+      - When None, X shape is unchanged (backward-compatible with existing models).
     """
     active = indicators if indicators is not None else ALL_INDICATORS
 
@@ -255,6 +289,32 @@ def build_dataset_with_target_times(
         ctx = build_multitf_context(df_1h, df_4h, np.asarray(target_times_series.values))
         X = np.concatenate([X, ctx], axis=1)
 
+    # ── Futures features (appended last — no impact on existing models) ──────
+    if df_taker is not None:
+        cvd = build_cvd_features(df_taker, np.asarray(target_times_series.values))
+        X = np.concatenate([X, cvd], axis=1)
+
+    if df_oi is not None:
+        oi_feats = build_oi_features(df_oi, np.asarray(target_times_series.values))
+        X = np.concatenate([X, oi_feats], axis=1)
+
+    if df_funding is not None:
+        fund_feats = build_funding_features(df_funding, np.asarray(target_times_series.values))
+        X = np.concatenate([X, fund_feats], axis=1)
+
+    # ── Extra features v3 (D1 context + Fear & Greed + Session) ──────────────
+    if df_1d is not None:
+        d1_feats = build_d1_features(df_1d, np.asarray(target_times_series.values))
+        X = np.concatenate([X, d1_feats], axis=1)
+
+    if df_fg is not None:
+        fg_feats = build_fg_features(df_fg, np.asarray(target_times_series.values))
+        X = np.concatenate([X, fg_feats], axis=1)
+
+    if include_session:
+        sess_feats = build_session_features(np.asarray(target_times_series.values))
+        X = np.concatenate([X, sess_feats], axis=1)
+
     if min_move_pct > 0.0:
         price_move_pct = np.abs(close[target_idx] - open_[target_idx]) / open_[target_idx]
         valid_mask = price_move_pct >= min_move_pct
@@ -270,9 +330,21 @@ def build_inference_features(
     predict_time: datetime | None = None,
     df_1h: pd.DataFrame | None = None,
     df_4h: pd.DataFrame | None = None,
+    # Optional futures data for live inference
+    df_taker: pd.DataFrame | None = None,
+    df_oi: pd.DataFrame | None = None,
+    df_funding: pd.DataFrame | None = None,
+    # Optional extra data v3
+    df_1d: pd.DataFrame | None = None,
+    df_fg: pd.DataFrame | None = None,
+    include_session: bool = False,
 ) -> np.ndarray:
     """
     Construit les features pour une prédiction en temps réel.
+
+    Optional futures params (df_taker, df_oi, df_funding):
+      - When provided, appends 5 + 4 + 3 = 12 extra features at the END of X.
+      - When None, X shape is unchanged (backward-compatible with existing models).
     """
     active = indicators if indicators is not None else ALL_INDICATORS
 
@@ -299,6 +371,8 @@ def build_inference_features(
         "uwik":   lambda: compute_upper_wick(open_arr, high_arr, low_arr, close_arr)[-window:],
         "lwik":   lambda: compute_lower_wick(open_arr, high_arr, low_arr, close_arr)[-window:],
         "streak": lambda: compute_streak(close_arr, open_arr)[-window:],
+        "adx":    lambda: compute_adx(high_arr, low_arr, close_arr)[-window:],
+        "stoch":  lambda: compute_stoch_k(high_arr, low_arr, close_arr)[-window:],
     }
 
     ohlcv_window = np.array(
@@ -322,5 +396,48 @@ def build_inference_features(
         X = np.concatenate([X, ctx.flatten()])
     elif df_1h is not None or df_4h is not None:
         X = np.concatenate([X, np.array([0.5, 0.5, 0.0, 0.0, 0.5])])
+
+    # ── Extra features v3 (D1 + F&G + Session) ───────────────────────────────
+    if predict_time is not None:
+        predict_ts_v3 = np.array([pd.Timestamp(predict_time).value])
+
+        if df_1d is not None:
+            d1_feats = build_d1_features(df_1d, predict_ts_v3)
+            X = np.concatenate([X, d1_feats.flatten()])
+
+        if df_fg is not None:
+            fg_feats = build_fg_features(df_fg, predict_ts_v3)
+            X = np.concatenate([X, fg_feats.flatten()])
+
+        if include_session:
+            sess_feats = build_session_features(predict_ts_v3)
+            X = np.concatenate([X, sess_feats.flatten()])
+    else:
+        n_extra = (7 if df_1d is not None else 0) + \
+                  (4 if df_fg is not None else 0) + \
+                  (4 if include_session else 0)
+        if n_extra > 0:
+            X = np.concatenate([X, np.zeros(n_extra)])
+
+    # ── Futures features (appended last — no impact on existing models) ──────
+    if predict_time is not None:
+        predict_ts = np.array([pd.Timestamp(predict_time).value])
+
+        if df_taker is not None:
+            cvd = build_cvd_features(df_taker, predict_ts)
+            X = np.concatenate([X, cvd.flatten()])
+        if df_oi is not None:
+            oi_feats = build_oi_features(df_oi, predict_ts)
+            X = np.concatenate([X, oi_feats.flatten()])
+        if df_funding is not None:
+            fund_feats = build_funding_features(df_funding, predict_ts)
+            X = np.concatenate([X, fund_feats.flatten()])
+    else:
+        # predict_time unknown — pad with zeros so feature count stays consistent
+        n_futures = (5 if df_taker is not None else 0) + \
+                    (4 if df_oi is not None else 0) + \
+                    (3 if df_funding is not None else 0)
+        if n_futures > 0:
+            X = np.concatenate([X, np.zeros(n_futures)])
 
     return X.reshape(1, -1)

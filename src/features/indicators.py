@@ -165,6 +165,46 @@ def compute_lower_wick(
     return np.clip(ratio, 0.0, 1.0)
 
 
+def compute_adx(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int = 14
+) -> np.ndarray:
+    """ADX normalisé [0, 1] — force de la tendance (0=range, 1=trend fort)."""
+    prev_close = np.roll(close, 1)
+    prev_close[0] = close[0]
+    tr = np.maximum(high - low, np.maximum(np.abs(high - prev_close), np.abs(low - prev_close)))
+
+    prev_high = np.roll(high, 1); prev_high[0] = high[0]
+    prev_low  = np.roll(low, 1);  prev_low[0]  = low[0]
+    dm_plus  = np.where((high - prev_high) > (prev_low - low), np.maximum(high - prev_high, 0.0), 0.0)
+    dm_minus = np.where((prev_low - low) > (high - prev_high), np.maximum(prev_low - low, 0.0), 0.0)
+    dm_plus[0] = 0.0; dm_minus[0] = 0.0
+
+    alpha = 1.0 / period
+    atr_s = np.asarray(pd.Series(tr).ewm(alpha=alpha, adjust=False).mean().values,     dtype="float64")
+    dmp_s = np.asarray(pd.Series(dm_plus).ewm(alpha=alpha, adjust=False).mean().values, dtype="float64")
+    dmm_s = np.asarray(pd.Series(dm_minus).ewm(alpha=alpha, adjust=False).mean().values,dtype="float64")
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        di_plus  = np.where(atr_s > 0, 100.0 * dmp_s / atr_s, 0.0)
+        di_minus = np.where(atr_s > 0, 100.0 * dmm_s / atr_s, 0.0)
+        di_sum   = di_plus + di_minus
+        dx       = np.where(di_sum > 0, 100.0 * np.abs(di_plus - di_minus) / di_sum, 0.0)
+
+    adx = np.asarray(pd.Series(dx).ewm(alpha=alpha, adjust=False).mean().values, dtype="float64")
+    return np.clip(adx / 100.0, 0.0, 1.0)
+
+
+def compute_stoch_k(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, k_period: int = 14
+) -> np.ndarray:
+    """Stochastic %K normalisé [0, 1]."""
+    s_high = np.asarray(pd.Series(high).rolling(k_period, min_periods=1).max().values, dtype="float64")
+    s_low  = np.asarray(pd.Series(low).rolling(k_period,  min_periods=1).min().values, dtype="float64")
+    with np.errstate(divide="ignore", invalid="ignore"):
+        k = np.where(s_high - s_low > 0, (close - s_low) / (s_high - s_low), 0.5)
+    return np.clip(k, 0.0, 1.0)
+
+
 def compute_streak(close: np.ndarray, open_: np.ndarray) -> np.ndarray:
     """Nombre de bougies consécutives dans la même direction, normalisé [-1, 1].
 

@@ -156,5 +156,24 @@ def live_m15(
     predictor.start()
 
 
+@app.command(name="live-v3")
+def live_v3(
+    symbol: str = typer.Option("BTCUSDT"),
+    window: int = typer.Option(50),
+):
+    """Lance la prediction live v3 (D1 + F&G + Session + ADX + Stoch + Optuna)."""
+    from src.live.predictor import LivePredictor
+
+    predictor = LivePredictor(
+        symbol=symbol,
+        interval="5m",
+        window=window,
+        model_path="models/oos_v3/default.pkl",
+        schedule_path="models/schedule_v3.json",
+        predictions_csv="models/predictions_v3.csv",
+    )
+    predictor.start()
+
+
 if __name__ == "__main__":
     app()

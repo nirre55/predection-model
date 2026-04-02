@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "shap>=0.51.0",
     "matplotlib>=3.10.8",
+    "py-clob-client>=0.34.6",
 ]
 
 [dependency-groups]
