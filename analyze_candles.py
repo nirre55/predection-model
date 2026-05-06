@@ -91,19 +91,34 @@ def _fetch_klines_raw(symbol: str, interval: str, start_ms: int, end_ms: int) ->
     return df[["ts_ns", "open", "high", "low", "close", "volume"]].sort_values("ts_ns").reset_index(drop=True)
 
 
-def fetch_5m(timestamps_s: list[int]) -> pd.DataFrame:
-    """
-    Fetch 5m candles covering all given timestamps plus WINDOW candles of context before each.
-    Makes the minimum number of API calls needed.
-    """
-    # Range needed: earliest start - WINDOW*5 min  to  latest end + 5 min
-    min_ts_ms = (min(timestamps_s) - WINDOW * 5 * 60) * 1000
-    max_ts_ms = (max(timestamps_s) + 5 * 60) * 1000
+_INTERVALS = [
+    (1440, "1d"), (240, "4h"), (60, "1h"), (30, "30m"),
+    (15, "15m"), (5, "5m"), (3, "3m"), (1, "1m"),
+]
 
-    print(f"  Fetch 5m  {_ms_to_str(min_ts_ms)} -> {_ms_to_str(max_ts_ms)} ...")
-    df = _fetch_klines_raw(SYMBOL, "5m", min_ts_ms, max_ts_ms)
-    print(f"  -> {len(df)} bougies 5m")
+def _detect_interval(timestamps_s: list[int]) -> tuple:
+    """Return (binance_interval_str, minutes) by checking which standard interval divides all timestamps."""
+    for minutes, label in _INTERVALS:
+        secs = minutes * 60
+        if all(ts % secs == 0 for ts in timestamps_s):
+            return label, minutes
+    return "5m", 5
+
+
+def fetch_candles(timestamps_s: list[int], interval_str: str, interval_min: int) -> pd.DataFrame:
+    """Fetch candles covering all timestamps plus WINDOW candles of context."""
+    pad = WINDOW * interval_min * 60
+    min_ts_ms = (min(timestamps_s) - pad) * 1000
+    max_ts_ms = (max(timestamps_s) + interval_min * 60) * 1000
+
+    print(f"  Fetch {interval_str}  {_ms_to_str(min_ts_ms)} -> {_ms_to_str(max_ts_ms)} ...")
+    df = _fetch_klines_raw(SYMBOL, interval_str, min_ts_ms, max_ts_ms)
+    print(f"  -> {len(df)} bougies {interval_str}")
     return df
+
+
+def fetch_5m(timestamps_s: list[int]) -> pd.DataFrame:
+    return fetch_candles(timestamps_s, "5m", 5)
 
 
 def fetch_1d(timestamps_s: list[int]) -> pd.DataFrame:
@@ -278,15 +293,15 @@ def _fear_greed_ctx(df_fg: "pd.DataFrame | None", ts_ns: int) -> dict:
 # ------------------------------------------------------------------ feature extraction
 
 def extract_features(df_5m: pd.DataFrame, target_ts_ns: int,
-                     df_1d=None, df_fg=None) -> "dict | None":
+                     df_1d=None, df_fg=None, interval_min: int = 5) -> "dict | None":
     """Find the candle at target_ts_ns and compute all features."""
     timestamps = np.asarray(df_5m["ts_ns"], dtype=np.int64)
     idx = int(np.searchsorted(timestamps, target_ts_ns))
 
-    # Allow small tolerance (< 5 min)
+    # Allow tolerance up to one candle width
     for candidate in (idx, idx - 1):
         if 0 <= candidate < len(timestamps):
-            if abs(int(timestamps[candidate]) - target_ts_ns) < 5 * ONE_MIN_NS:
+            if abs(int(timestamps[candidate]) - target_ts_ns) < interval_min * ONE_MIN_NS:
                 idx = candidate
                 break
     else:
@@ -854,14 +869,15 @@ def _parse_file(path: Path) -> list:
     return markets
 
 
-def _extract_all(markets: list, df_5m, df_1d, df_fg, label: str, *, verbose: bool = True) -> list:
+def _extract_all(markets: list, df_5m, df_1d, df_fg, label: str, *,
+                 verbose: bool = True, interval_min: int = 5) -> list:
     features_list = []
     skipped = []
     if verbose:
         print(f"\nExtraction [{label}]...")
     for line, asset, direction, tf, ts_s in markets:
         ts_ns = ts_s * ONE_SEC_NS
-        feat  = extract_features(df_5m, ts_ns, df_1d=df_1d, df_fg=df_fg)
+        feat  = extract_features(df_5m, ts_ns, df_1d=df_1d, df_fg=df_fg, interval_min=interval_min)
         if feat is None:
             if verbose:
                 print(f"  [SKIP] {line}  ({ts_to_human(ts_s)})")
@@ -1008,20 +1024,23 @@ def main():
             print("CSV: impossible de separer losses/wins (verifier colonne 'result')")
             sys.exit(1)
         all_ts = [ts_s for _, _, _, _, ts_s in losses + wins]
-        print(f"\nFetch des donnees ({len(all_ts)} trades)...\n")
-        df_5m = fetch_5m(all_ts)
+        interval_str, interval_min = _detect_interval(all_ts)
+        print(f"\nIntervalle detecte: {interval_str}")
+        print(f"Fetch des donnees ({len(all_ts)} trades)...\n")
+        df_candles = fetch_candles(all_ts, interval_str, interval_min)
         df_1d = fetch_1d(all_ts)
         df_fg = fetch_fear_greed()
-        fa = _extract_all(losses, df_5m, df_1d, df_fg, "losses")
-        fb = _extract_all(wins,   df_5m, df_1d, df_fg, "wins")
+        fa = _extract_all(losses, df_candles, df_1d, df_fg, "losses", interval_min=interval_min)
+        fb = _extract_all(wins,   df_candles, df_1d, df_fg, "wins",   interval_min=interval_min)
         stem = paths[0].stem
         pd.DataFrame(fa).to_csv(f"features_{stem}_losses.csv", index=False)
         pd.DataFrame(fb).to_csv(f"features_{stem}_wins.csv",   index=False)
-        _save(format_report(fa, "LOSSES"), Path(f"report_{stem}_losses.txt"))
-        _save(format_report(fb, "WINS"),   Path(f"report_{stem}_wins.txt"))
+        _save(format_report(fa, f"LOSSES ({interval_str})"), Path(f"report_{stem}_losses.txt"))
+        _save(format_report(fb, f"WINS ({interval_str})"),   Path(f"report_{stem}_wins.txt"))
         stats_a = build_stats(fa); stats_b = build_stats(fb)
         print("\n" + "=" * 68 + "\n  RAPPORT COMPARATIF\n" + "=" * 68)
-        comp_lines = format_comparison(stats_a, stats_b, "LOSSES", "WINS")
+        comp_lines = format_comparison(stats_a, stats_b,
+                                       f"LOSSES ({interval_str})", f"WINS ({interval_str})")
         _save(comp_lines, Path(f"report_{stem}_comparison.txt"))
         return
 
