@@ -783,6 +783,27 @@ def format_comparison(stats_a: dict, stats_b: dict,
 
 # ------------------------------------------------------------------ helpers
 
+def _parse_csv(path: Path):
+    """Parse a trading journal CSV -> (losses, wins) as lists of (label, asset, direction, tf, ts_s)."""
+    df = pd.read_csv(path)
+    required = {"time", "result"}
+    if not required.issubset(df.columns):
+        raise ValueError(f"CSV doit avoir les colonnes: {required}. Colonnes: {list(df.columns)}")
+    losses, wins = [], []
+    for i, row in df.iterrows():
+        ts = pd.Timestamp(row["time"])
+        ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+        ts_s = int(ts.timestamp())
+        lbl = f"row-{int(row['trade_number']) if 'trade_number' in row.index else i+1}"
+        entry = (lbl, "BTC", "updown", "5m", ts_s)
+        if str(row["result"]).lower() == "loss":
+            losses.append(entry)
+        else:
+            wins.append(entry)
+    print(f"  CSV: {len(losses)} losses, {len(wins)} wins")
+    return losses, wins
+
+
 def _parse_file(path: Path) -> list:
     lines = [
         l.split("#")[0].strip()
@@ -835,9 +856,33 @@ def main():
             print(f"Fichier introuvable: {p}")
             sys.exit(1)
 
-    # -- parse all files
+    # -- CSV mode: single CSV with result column -> auto split losses vs wins
+    if len(paths) == 1 and paths[0].suffix.lower() == ".csv":
+        losses, wins = _parse_csv(paths[0])
+        if not losses or not wins:
+            print("CSV: impossible de separer losses/wins (verifier colonne 'result')")
+            sys.exit(1)
+        all_ts = [ts_s for _, _, _, _, ts_s in losses + wins]
+        print(f"\nFetch des donnees ({len(all_ts)} trades)...\n")
+        df_5m = fetch_5m(all_ts)
+        df_1d = fetch_1d(all_ts)
+        df_fg = fetch_fear_greed()
+        fa = _extract_all(losses, df_5m, df_1d, df_fg, "losses")
+        fb = _extract_all(wins,   df_5m, df_1d, df_fg, "wins")
+        stem = paths[0].stem
+        pd.DataFrame(fa).to_csv(f"features_{stem}_losses.csv", index=False)
+        pd.DataFrame(fb).to_csv(f"features_{stem}_wins.csv",   index=False)
+        _save(format_report(fa, "LOSSES"), Path(f"report_{stem}_losses.txt"))
+        _save(format_report(fb, "WINS"),   Path(f"report_{stem}_wins.txt"))
+        stats_a = build_stats(fa); stats_b = build_stats(fb)
+        print("\n" + "=" * 68 + "\n  RAPPORT COMPARATIF\n" + "=" * 68)
+        comp_lines = format_comparison(stats_a, stats_b, "LOSSES", "WINS")
+        _save(comp_lines, Path(f"report_{stem}_comparison.txt"))
+        return
+
+    # -- TXT mode: one or two market-ID files
     all_markets = [_parse_file(p) for p in paths]
-    for i, (p, m) in enumerate(zip(paths, all_markets)):
+    for p, m in zip(paths, all_markets):
         if not m:
             print(f"Aucun marche valide dans {p}")
             sys.exit(1)
@@ -851,7 +896,7 @@ def main():
 
     # -- extract per file
     all_features = []
-    for i, (p, markets) in enumerate(zip(paths, all_markets)):
+    for p, markets in zip(paths, all_markets):
         label = p.stem
         feats = _extract_all(markets, df_5m, df_1d, df_fg, label)
         if not feats:
