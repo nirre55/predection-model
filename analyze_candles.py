@@ -785,24 +785,32 @@ def format_comparison(stats_a: dict, stats_b: dict,
 # ------------------------------------------------------------------ helpers
 
 def _parse_monthly_folder(folder: Path):
-    """Walk month subfolders (YYYY-MM), load MONTHLY_CSV from each, combine losses/wins."""
+    """Walk month subfolders (YYYY-MM), load MONTHLY_CSV from each.
+
+    Returns:
+        losses      flat list for global analysis
+        wins        flat list for global analysis
+        by_month    dict {month_name: (losses_list, wins_list)} for consistency analysis
+        months_ok   sorted list of month names found
+    """
     losses, wins = [], []
+    by_month: dict = {}
     months_ok = []
     for month_dir in sorted(d for d in folder.iterdir() if d.is_dir()):
         csv_path = month_dir / MONTHLY_CSV
         if not csv_path.exists():
-            print(f"  [SKIP] {month_dir.name}: {MONTHLY_CSV} introuvable")
             continue
         try:
             ml, mw = _parse_csv(csv_path, _verbose=False)
             print(f"  {month_dir.name}: {len(ml)} losses  {len(mw)} wins")
             losses.extend(ml)
             wins.extend(mw)
+            by_month[month_dir.name] = (ml, mw)
             months_ok.append(month_dir.name)
         except Exception as e:
             print(f"  [ERR] {month_dir.name}: {e}")
     print(f"\n  Total: {len(months_ok)} mois  |  {len(losses)} losses  {len(wins)} wins")
-    return losses, wins, months_ok
+    return losses, wins, by_month, months_ok
 
 
 def _parse_csv(path: Path, *, _verbose: bool = True):
@@ -846,23 +854,98 @@ def _parse_file(path: Path) -> list:
     return markets
 
 
-def _extract_all(markets: list, df_5m, df_1d, df_fg, label: str) -> list:
+def _extract_all(markets: list, df_5m, df_1d, df_fg, label: str, *, verbose: bool = True) -> list:
     features_list = []
     skipped = []
-    print(f"\nExtraction [{label}]...")
+    if verbose:
+        print(f"\nExtraction [{label}]...")
     for line, asset, direction, tf, ts_s in markets:
         ts_ns = ts_s * ONE_SEC_NS
         feat  = extract_features(df_5m, ts_ns, df_1d=df_1d, df_fg=df_fg)
         if feat is None:
-            print(f"  [SKIP] {line}  ({ts_to_human(ts_s)})")
+            if verbose:
+                print(f"  [SKIP] {line}  ({ts_to_human(ts_s)})")
             skipped.append(line)
             continue
         feat["market_id"] = line; feat["asset"] = asset; feat["direction_market"] = direction
-        print(f"  [OK]  {line:<42} {ts_to_human(ts_s)}")
+        if verbose:
+            print(f"  [OK]  {line:<42} {ts_to_human(ts_s)}")
         features_list.append(feat)
-    if skipped:
+    if skipped and verbose:
         print(f"  {len(skipped)} ignore(s)")
     return features_list
+
+
+def _monthly_consistency(by_month: dict, df_5m, df_1d, df_fg) -> list:
+    """For each month compute avoid/favorable features, count consistency across months."""
+    avoid_cnt: Counter = Counter()
+    take_cnt:  Counter = Counter()
+    total = 0
+
+    for month, (ml, mw) in sorted(by_month.items()):
+        if not ml or not mw:
+            continue
+        fa = _extract_all(ml, df_5m, df_1d, df_fg, month, verbose=False)
+        fb = _extract_all(mw, df_5m, df_1d, df_fg, month, verbose=False)
+        if not fa or not fb:
+            continue
+        total += 1
+        sa = build_stats(fa); sb = build_stats(fb)
+
+        for key in PRE_CAT_KEYS:
+            da = sa.get(key, {}); db = sb.get(key, {})
+            for k in set(da) | set(db):
+                va = da.get(k, 0.0); vb = db.get(k, 0.0)
+                if vb > 2.0:
+                    r = va / vb
+                    if r >= 1.2:
+                        avoid_cnt[f"{key}={k}"] += 1
+                    elif r <= 0.80:
+                        take_cnt[f"{key}={k}"] += 1
+
+        for key in PRE_BOOL_KEYS:
+            da = sa.get(key); db = sb.get(key)
+            if da and db and db["pct_true"] > 5:
+                r = da["pct_true"] / db["pct_true"]
+                if r >= 1.2:
+                    avoid_cnt[f"{key}=True"] += 1
+                elif r <= 0.80:
+                    take_cnt[f"{key}=True"] += 1
+
+    def _cons_label(n, t):
+        pct = n / t
+        if pct >= 0.70: return "!! tres consistant"
+        if pct >= 0.50: return "!  consistant"
+        return "   modere"
+
+    lines = []
+    p = lines.append
+    p("=" * 72)
+    p(f"  CONSISTANCE MENSUELLE  ({total} mois analyses)")
+    p(f"  Nombre de mois ou la condition est flagguee avoid (ratio>=1.2)")
+    p(f"  ou favorable (ratio<=0.80) -- seuil affichage: 30% des mois")
+    p("=" * 72)
+
+    min_count = max(1, int(total * 0.30))
+
+    p("\n  CONDITIONS A EVITER:")
+    p(f"  {'Condition':<40} {'Mois':>5}  {'/ total':>7}  Consistance")
+    p("  " + "-" * 68)
+    for name, cnt in avoid_cnt.most_common():
+        if cnt < min_count:
+            continue
+        p(f"  {name:<40} {cnt:>5}  / {total:<5}  {_cons_label(cnt, total)}")
+
+    p("\n  CONDITIONS FAVORABLES:")
+    p(f"  {'Condition':<40} {'Mois':>5}  {'/ total':>7}  Consistance")
+    p("  " + "-" * 68)
+    for name, cnt in take_cnt.most_common():
+        if cnt < min_count:
+            continue
+        p(f"  {name:<40} {cnt:>5}  / {total:<5}  {_cons_label(cnt, total)}")
+
+    p("\n" + "=" * 72 + "\n")
+    return lines
 
 
 def _save(lines: list, path: Path):
@@ -886,7 +969,7 @@ def main():
     # -- Monthly folder mode: directory of YYYY-MM subfolders
     if len(paths) == 1 and paths[0].is_dir():
         print(f"\nMode mensuel: {paths[0]}")
-        losses, wins, months = _parse_monthly_folder(paths[0])
+        losses, wins, by_month, months = _parse_monthly_folder(paths[0])
         if not losses or not wins:
             print("Dossier: aucune donnee losses/wins trouvee")
             sys.exit(1)
@@ -895,6 +978,8 @@ def main():
         df_5m = fetch_5m(all_ts)
         df_1d = fetch_1d(all_ts)
         df_fg = fetch_fear_greed()
+
+        # global analysis
         fa = _extract_all(losses, df_5m, df_1d, df_fg, "losses")
         fb = _extract_all(wins,   df_5m, df_1d, df_fg, "wins")
         stem = paths[0].name
@@ -907,6 +992,13 @@ def main():
         comp_lines = format_comparison(stats_a, stats_b,
                                        f"LOSSES ({len(months)} mois)", f"WINS ({len(months)} mois)")
         _save(comp_lines, Path(f"report_{stem}_comparison.txt"))
+
+        # consistency analysis (month by month)
+        print(f"\nAnalyse de consistance ({len(months)} mois)...")
+        cons_lines = _monthly_consistency(by_month, df_5m, df_1d, df_fg)
+        for l in cons_lines:
+            print(l)
+        _save(cons_lines, Path(f"report_{stem}_consistency.txt"))
         return
 
     # -- CSV mode: single CSV with result column -> auto split losses vs wins
