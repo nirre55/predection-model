@@ -25,10 +25,11 @@ import requests
 
 # ------------------------------------------------------------------ constants
 
-BINANCE_URL = "https://api.binance.com/api/v3/klines"
-FG_URL      = "https://api.alternative.me/fng/?limit=0&format=json"
-SYMBOL      = "BTCUSDT"
-WINDOW      = 50        # bougies de contexte avant chaque cible
+BINANCE_URL  = "https://api.binance.com/api/v3/klines"
+FG_URL       = "https://api.alternative.me/fng/?limit=0&format=json"
+SYMBOL       = "BTCUSDT"
+WINDOW       = 50        # bougies de contexte avant chaque cible
+MONTHLY_CSV  = "sim_A_payoutA_MM1_flat_fixed.csv"
 ONE_SEC_NS  = 1_000_000_000
 ONE_MIN_NS  = 60  * ONE_SEC_NS
 ONE_HOUR_NS = 60  * ONE_MIN_NS
@@ -783,24 +784,50 @@ def format_comparison(stats_a: dict, stats_b: dict,
 
 # ------------------------------------------------------------------ helpers
 
-def _parse_csv(path: Path):
+def _parse_monthly_folder(folder: Path):
+    """Walk month subfolders (YYYY-MM), load MONTHLY_CSV from each, combine losses/wins."""
+    losses, wins = [], []
+    months_ok = []
+    for month_dir in sorted(d for d in folder.iterdir() if d.is_dir()):
+        csv_path = month_dir / MONTHLY_CSV
+        if not csv_path.exists():
+            print(f"  [SKIP] {month_dir.name}: {MONTHLY_CSV} introuvable")
+            continue
+        try:
+            ml, mw = _parse_csv(csv_path, _verbose=False)
+            print(f"  {month_dir.name}: {len(ml)} losses  {len(mw)} wins")
+            losses.extend(ml)
+            wins.extend(mw)
+            months_ok.append(month_dir.name)
+        except Exception as e:
+            print(f"  [ERR] {month_dir.name}: {e}")
+    print(f"\n  Total: {len(months_ok)} mois  |  {len(losses)} losses  {len(wins)} wins")
+    return losses, wins, months_ok
+
+
+def _parse_csv(path: Path, *, _verbose: bool = True):
     """Parse a trading journal CSV -> (losses, wins) as lists of (label, asset, direction, tf, ts_s)."""
     df = pd.read_csv(path)
     required = {"time", "result"}
     if not required.issubset(df.columns):
         raise ValueError(f"CSV doit avoir les colonnes: {required}. Colonnes: {list(df.columns)}")
     losses, wins = [], []
-    for i, row in df.iterrows():
-        ts = pd.Timestamp(row["time"])
+    for row_number in range(1, len(df) + 1):
+        row = df.iloc[row_number - 1]
+        ts = pd.Timestamp(str(row["time"]))
         ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
         ts_s = int(ts.timestamp())
-        lbl = f"row-{int(row['trade_number']) if 'trade_number' in row.index else i+1}"
+        trade_number = row_number
+        if "trade_number" in df.columns and not pd.isna(row["trade_number"]):
+            trade_number = int(float(str(row["trade_number"])))
+        lbl = f"row-{trade_number}"
         entry = (lbl, "BTC", "updown", "5m", ts_s)
         if str(row["result"]).lower() == "loss":
             losses.append(entry)
         else:
             wins.append(entry)
-    print(f"  CSV: {len(losses)} losses, {len(wins)} wins")
+    if _verbose:
+        print(f"  CSV: {len(losses)} losses, {len(wins)} wins")
     return losses, wins
 
 
@@ -855,6 +882,32 @@ def main():
         if not p.exists():
             print(f"Fichier introuvable: {p}")
             sys.exit(1)
+
+    # -- Monthly folder mode: directory of YYYY-MM subfolders
+    if len(paths) == 1 and paths[0].is_dir():
+        print(f"\nMode mensuel: {paths[0]}")
+        losses, wins, months = _parse_monthly_folder(paths[0])
+        if not losses or not wins:
+            print("Dossier: aucune donnee losses/wins trouvee")
+            sys.exit(1)
+        all_ts = [ts_s for _, _, _, _, ts_s in losses + wins]
+        print(f"\nFetch des donnees ({len(all_ts)} trades sur {len(months)} mois)...\n")
+        df_5m = fetch_5m(all_ts)
+        df_1d = fetch_1d(all_ts)
+        df_fg = fetch_fear_greed()
+        fa = _extract_all(losses, df_5m, df_1d, df_fg, "losses")
+        fb = _extract_all(wins,   df_5m, df_1d, df_fg, "wins")
+        stem = paths[0].name
+        pd.DataFrame(fa).to_csv(f"features_{stem}_losses.csv", index=False)
+        pd.DataFrame(fb).to_csv(f"features_{stem}_wins.csv",   index=False)
+        _save(format_report(fa, f"LOSSES ({len(months)} mois)"), Path(f"report_{stem}_losses.txt"))
+        _save(format_report(fb, f"WINS ({len(months)} mois)"),   Path(f"report_{stem}_wins.txt"))
+        stats_a = build_stats(fa); stats_b = build_stats(fb)
+        print("\n" + "=" * 68 + "\n  RAPPORT COMPARATIF\n" + "=" * 68)
+        comp_lines = format_comparison(stats_a, stats_b,
+                                       f"LOSSES ({len(months)} mois)", f"WINS ({len(months)} mois)")
+        _save(comp_lines, Path(f"report_{stem}_comparison.txt"))
+        return
 
     # -- CSV mode: single CSV with result column -> auto split losses vs wins
     if len(paths) == 1 and paths[0].suffix.lower() == ".csv":
